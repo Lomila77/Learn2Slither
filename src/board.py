@@ -9,7 +9,9 @@ from src.config import (
     RED_APPLE,
     EMPTY_CASE,
     CELL_SIZE,
-    FRAMERATE
+    FRAMERATE,
+    SCREEN_UPDATE,
+    SPEED
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
@@ -34,6 +36,7 @@ class Board:
         )
         self.clock = pygame.time.Clock()
         self.framerate = FRAMERATE
+        pygame.time.set_timer(SCREEN_UPDATE, SPEED)
         self.background_color = (175, 215, 70)
         #
 
@@ -50,6 +53,18 @@ class Board:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                # TODO: AI input ?
+                if event.type == SCREEN_UPDATE:
+                    self.object[0].move(pygame.Vector2(1, 0))
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        self.object[0].move(pygame.Vector2(0, -1))
+                    if event.key == pygame.K_DOWN:
+                        self.object[0].move(pygame.Vector2(0, 1))
+                    if event.key == pygame.K_RIGHT:
+                        self.object[0].move(pygame.Vector2(1, 0))
+                    if event.key == pygame.K_LEFT:
+                        self.object[0].move(pygame.Vector2(-1, 0))
             self.screen.fill(self.background_color)
             for obj in self.object:
                 obj.draw(self.screen)
@@ -59,7 +74,7 @@ class Board:
     def create_object(self, id: int = EMPTY_CASE) -> None:
         if id == SNAKE_HEAD:
             object = Snake(self.board)
-            for x, y in object.body_pos:
+            for x, y in object.body:
                 self.board[int(x)][int(y)] = SNAKE_BODY
         if id == GREEN_APPLE:
             object = GreenApple(self.board)
@@ -91,5 +106,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([10, 10])
+    env = Board([50, 50])
     env.play()
