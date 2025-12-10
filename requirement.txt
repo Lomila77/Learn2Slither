@@ -1,0 +1,4 @@
+numpy
+pytest
+flake8
+pygame
