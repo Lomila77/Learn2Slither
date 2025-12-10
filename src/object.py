@@ -37,8 +37,8 @@ class GreenApple(Apple):
 
     def draw(self, screen):
         apple_rect = pygame.Rect(
-            self.pos.x * CELL_SIZE,
-            self.pos.y * CELL_SIZE,
+            int(self.pos.x * CELL_SIZE),
+            int(self.pos.y * CELL_SIZE),
             CELL_SIZE,
             CELL_SIZE
         )
@@ -58,8 +58,8 @@ class RedApple(Apple):
 
     def draw(self, screen):
         apple_rect = pygame.Rect(
-            self.pos.x * CELL_SIZE,
-            self.pos.y * CELL_SIZE,
+            int(self.pos.x * CELL_SIZE),
+            int(self.pos.y * CELL_SIZE),
             CELL_SIZE,
             CELL_SIZE
         )
