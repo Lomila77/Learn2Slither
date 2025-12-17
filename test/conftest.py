@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from src.board import EnvGrid
+from src.board import Board
 
 
 @pytest.fixture
@@ -63,5 +63,5 @@ def board_with_object(empty_board):
 # TODO: Rajouter le corps
 @pytest.fixture
 def board_with_object_and_head_snake(shape):
-    env = EnvGrid(shape)
+    env = Board(shape)
     return env.board
