@@ -1,5 +1,6 @@
 
 import pygame
+from pygame.math import Vector2
 import sys
 import numpy as np
 from src.config import (
@@ -16,7 +17,7 @@ from src.config import (
 from src.object import GreenApple, RedApple
 from src.snake import Snake
 
-
+# TODO: parfois quand le jeu commence le snake est mal positionner et se marche dessus directe
 class Board:
     def __init__(self, shape: list[int]) -> None:
         if len(shape) != 2:
@@ -31,9 +32,9 @@ class Board:
             raise ValueError("Too small, higher than 10 pls")
         # TODO: TEST
         pygame.init()
+        self.shape = Vector2(shape[0], shape[1])
         self.screen = pygame.display.set_mode(
-            (CELL_SIZE * shape[0], CELL_SIZE * shape[1])
-        )
+            Vector2(CELL_SIZE * shape[0], CELL_SIZE * shape[1]))
         self.clock = pygame.time.Clock()
         self.framerate = FRAMERATE
         pygame.time.set_timer(SCREEN_UPDATE, SPEED)
@@ -41,56 +42,64 @@ class Board:
         #
 
         self.board = np.zeros((shape[0], shape[1]))
-        self.object: tuple = []
-        self.create_object(SNAKE_HEAD)
-        self.create_object(GREEN_APPLE)
-        self.create_object(GREEN_APPLE)
-        self.create_object(RED_APPLE)
+        self.green_apple: list = self.create_green_apple()
+        self.red_apple: list = self.create_red_apple()
+        self.snake: Snake = self.create_snake()
+        print("Starting the game")
 
     def play(self):
         while True:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                if event.type == pygame.QUIT or self.is_finished():
+                    self.game_over()
                 # TODO: AI input ?
                 if event.type == SCREEN_UPDATE:
-                    self.object[0].move(pygame.Vector2(1, 0))
+                    self.snake.move(self.snake.direction)
                 if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.game_over()
                     if event.key == pygame.K_UP:
-                        self.object[0].move(pygame.Vector2(0, -1))
+                        self.snake.move(pygame.Vector2(0, -1))
                     if event.key == pygame.K_DOWN:
-                        self.object[0].move(pygame.Vector2(0, 1))
+                        self.snake.move(pygame.Vector2(0, 1))
                     if event.key == pygame.K_RIGHT:
-                        self.object[0].move(pygame.Vector2(1, 0))
+                        self.snake.move(pygame.Vector2(1, 0))
                     if event.key == pygame.K_LEFT:
-                        self.object[0].move(pygame.Vector2(-1, 0))
+                        self.snake.move(pygame.Vector2(-1, 0))
+            self.check_collision()
             self.screen.fill(self.background_color)
-            for obj in self.object:
-                obj.draw(self.screen)
+            for apple in self.green_apple:
+                apple.draw(self.screen)
+            for apple in self.red_apple:
+                apple.draw(self.screen)
+            self.snake.draw(self.screen)
             pygame.display.update()
             self.clock.tick(self.framerate)
+    
+    def create_green_apple(self, nb: int = 2):
+        apples: list = []
+        for _ in range(nb):
+            apples.append(GreenApple(self.board))
+        print("Create green apple")
+        return apples
 
-    def create_object(self, id: int = EMPTY_CASE) -> None:
-        if id == SNAKE_HEAD:
-            object = Snake(self.board)
-            for x, y in object.body:
-                self.board[int(x)][int(y)] = SNAKE_BODY
-        if id == GREEN_APPLE:
-            object = GreenApple(self.board)
-        if id == RED_APPLE:
-            object = RedApple(self.board)
-        x, y = object.get_position()
-        self.object.append(object)
-        self.board[x][y] = id
+    def create_red_apple(self, nb: int = 1):
+        apples: list = []
+        for _ in range(nb):
+            apples.append(RedApple(self.board))
+        print("Create green apple")
+        return apples
+
+    def create_snake(self):
+        print("Create lovely snake")
+        return Snake(self.board)
 
     def reset(self):
         self.board = np.zeros_like(self.board)
-        self.object: tuple = []
-        self.create_object(SNAKE_HEAD)
-        self.create_object(GREEN_APPLE)
-        self.create_object(GREEN_APPLE)
-        self.create_object(RED_APPLE)
+        print("Game reset")
+        self.green_apple = self.create_green_apple()
+        self.red_apple = self.create_red_apple()
+        self.snake = self.create_snake()
 
     # TODO: Show via pygame ou en terminal ? Je crois que le sujet en parle
     def show(self):
@@ -102,7 +111,36 @@ class Board:
         print(board)
 
     def is_finished(self):
-        pass
+        if self.snake.get_length() < 3:
+            print("Snake too short...")
+            return True
+        if not 0 <= self.snake.get_head_position().x <  self.shape.x:
+            print("Snake is gone, good bye snaky snakie")
+            return True
+        if not 0 <= self.snake.get_head_position().y <  self.shape.y:
+            print("Snake is gone, good bye snaky snakie")
+            return True
+        if self.snake.get_head_position() in self.snake.get_body_position():
+            print("Snake ate himself !!! Feed your snake !")
+            return True
+        return False
+    
+    def game_over(self):
+        print("\n=== GAME OVER ===")
+        print(f"Snake Length: {self.snake.get_length()}")
+        pygame.quit()
+        sys.exit()
+
+
+    def check_collision(self):
+        for apple in self.green_apple:
+            if apple.get_position() == self.snake.get_head_position():
+                self.snake.eat(apple.nourrish(self.board))
+                print("Snake ate yummy green apple ! Happy snake !")
+        for apple in self.red_apple:
+            if apple.get_position() == self.snake.get_head_position():
+                self.snake.eat(apple.nourrish(self.board))
+                print("Snake ate an horrible red apple... Poor snake...")
 
 
 if __name__ == "__main__":
