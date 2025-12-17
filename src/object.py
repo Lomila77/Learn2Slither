@@ -2,7 +2,7 @@ import pygame
 from pygame.math import Vector2
 from abc import ABC, abstractmethod
 from src.utils import get_random_position
-from src.config import GREEN_APPLE, RED_APPLE, SNAKE_HEAD, CELL_SIZE
+from src.config import EMPTY_CASE, GREEN_APPLE, RED_APPLE, SNAKE_HEAD, CELL_SIZE
 
 
 class Object(ABC):
@@ -14,20 +14,30 @@ class Object(ABC):
         pass
 
     @abstractmethod
-    def draw(self):
+    def draw(self, screen):
         pass
 
 
 class Apple(Object, ABC):
-    def __init__(self, board: list[list[int]], id: int):
-        self.id = id
-        forbidden_ids = [SNAKE_HEAD, GREEN_APPLE, RED_APPLE]
-        self.x, self.y = get_random_position(board, forbidden_ids)
-        self.pos = Vector2(self.x, self.y)
+    forbidden_ids = [SNAKE_HEAD, GREEN_APPLE, RED_APPLE]
 
-    @abstractmethod
-    def nourrish(self):
-        pass
+    def __init__(self, board: list[list[int]], id: int):
+        super().__init__(board)
+        self.id = id
+        self.x, self.y = get_random_position(board, self.forbidden_ids)
+        board[self.x][self.y] = id
+        self.pos = Vector2(self.x, self.y)
+        self.nutrients = 0
+
+    def nourrish(self, board):
+        board[int(self.pos.x)][int(self.pos.y)] = EMPTY_CASE
+        x, y = get_random_position(board, self.forbidden_ids)
+        self.pos = Vector2(x, y)
+        board[x][y] = self.id
+        return self.nutrients
+
+    def get_position(self):
+        return self.pos
 
 
 class GreenApple(Apple):
@@ -44,12 +54,6 @@ class GreenApple(Apple):
         )
         pygame.draw.rect(screen, pygame.Color('green'), apple_rect)
 
-    def nourrish(self):
-        return self.nutrients
-
-    def get_position(self):
-        return self.x, self.y
-
 
 class RedApple(Apple):
     def __init__(self, board: list[list[int]]):
@@ -65,8 +69,3 @@ class RedApple(Apple):
         )
         pygame.draw.rect(screen, pygame.Color('red'), apple_rect)
 
-    def nourrish(self):
-        return self.nutrients
-
-    def get_position(self):
-        return self.x, self.y
