@@ -1,4 +1,5 @@
 
+from gc import is_finalized
 import pygame
 from pygame.math import Vector2
 import sys
@@ -16,6 +17,8 @@ from src.config import (
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
+from src.utils import UP, DOWN, LEFT, RIGHT
+
 
 # TODO: parfois quand le jeu commence le snake est mal positionner et se marche dessus directe
 class Board:
@@ -31,6 +34,7 @@ class Board:
         if shape[0] < 10 and shape[1] < 10:
             raise ValueError("Too small, higher than 10 pls")
         # TODO: TEST
+        pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.init()
         self.shape = Vector2(shape[0], shape[1])
         self.screen = pygame.display.set_mode(
@@ -39,6 +43,7 @@ class Board:
         self.framerate = FRAMERATE
         pygame.time.set_timer(SCREEN_UPDATE, SPEED)
         self.background_color = (175, 215, 70)
+        self.game_font = pygame.font.Font('font/PoetsenOne-Regular.ttf', 25)
         #
 
         self.board = np.zeros((shape[0], shape[1]))
@@ -59,23 +64,57 @@ class Board:
                     if event.key == pygame.K_ESCAPE:
                         self.game_over()
                     if event.key == pygame.K_UP:
-                        self.snake.move(pygame.Vector2(0, -1))
+                        if self.snake.direction.y != 1:
+                            self.snake.move(UP)
                     if event.key == pygame.K_DOWN:
-                        self.snake.move(pygame.Vector2(0, 1))
+                        if self.snake.direction.y != -1:
+                            self.snake.move(DOWN)
                     if event.key == pygame.K_RIGHT:
-                        self.snake.move(pygame.Vector2(1, 0))
+                        if self.snake.direction.x != -1:
+                            self.snake.move(RIGHT)
                     if event.key == pygame.K_LEFT:
-                        self.snake.move(pygame.Vector2(-1, 0))
+                        if self.snake.direction.x != 1:
+                            self.snake.move(LEFT)
             self.check_collision()
             self.screen.fill(self.background_color)
-            for apple in self.green_apple:
-                apple.draw(self.screen)
-            for apple in self.red_apple:
-                apple.draw(self.screen)
-            self.snake.draw(self.screen)
+            self.draw_grass()
+            self.draw_object()
+            self.draw_score()
             pygame.display.update()
             self.clock.tick(self.framerate)
-    
+
+    def draw_object(self):
+        for apple in self.green_apple:
+            apple.draw(self.screen)
+        for apple in self.red_apple:
+            apple.draw(self.screen)
+        self.snake.draw(self.screen)
+
+    def draw_grass(self):
+        grass_color = (167, 209, 61)
+        for row in range(int(self.shape[0])):
+            color = False
+            if row % 2 == 0: 
+                color = True
+            for col in range(int(self.shape[1])):
+                if col % 2 == 0 and color is True:
+                    grass_rect = pygame.Rect(
+                        col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                    pygame.draw.rect(self.screen, grass_color, grass_rect)
+                elif col % 2 != 0 and color is False:
+                    grass_rect = pygame.Rect(
+                        col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                    pygame.draw.rect(self.screen, grass_color, grass_rect)
+
+    def draw_score(self):
+        score_text = f"{len(self.snake.body) - 3}"
+        score_surface = self.game_font.render(
+            score_text, True, (56, 74, 12))
+        score_x = int(CELL_SIZE * self.shape[0] - 60)
+        score_y = int(CELL_SIZE * self.shape[1] - 40)
+        score_rect = score_surface.get_rect(center=(score_x, score_y))
+        self.screen.blit(score_surface, score_rect)
+
     def create_green_apple(self, nb: int = 2):
         apples: list = []
         for _ in range(nb):
@@ -114,10 +153,10 @@ class Board:
         if self.snake.get_length() < 3:
             print("Snake too short...")
             return True
-        if not 0 <= self.snake.get_head_position().x <  self.shape.x:
+        if not 0 <= self.snake.get_head_position().x < self.shape.x:
             print("Snake is gone, good bye snaky snakie")
             return True
-        if not 0 <= self.snake.get_head_position().y <  self.shape.y:
+        if not 0 <= self.snake.get_head_position().y < self.shape.y:
             print("Snake is gone, good bye snaky snakie")
             return True
         if self.snake.get_head_position() in self.snake.get_body_position():
@@ -144,5 +183,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([50, 50])
+    env = Board([30, 30])
     env.play()
