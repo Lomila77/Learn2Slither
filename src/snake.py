@@ -20,7 +20,6 @@ class Snake(Object):
     def __init__(self, board: list[list[int]]) -> None:
         self.head_id = SNAKE_HEAD
         self.body_id = SNAKE_BODY
-        self.brain = Brain(board.shape)
         # TODO: modifier la direction de base
         self.direction = Vector2(1, 0)
         self.game_board = board
@@ -69,10 +68,13 @@ class Snake(Object):
             (CELL_SIZE, CELL_SIZE))
         self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
-
-
         x, y = get_random_position(self.game_board)
         self.body: list[Vector2] = [Vector2(x, y)]
+
+        x_axis, y_axis = self.watch()
+        self.brain = Brain(
+            self.game_board.shape, self.get_head_position(), x_axis, y_axis)
+
         for _ in range(2):
             last_pos = self.body[-1]
             for action in self.brain.actions:
@@ -93,6 +95,7 @@ class Snake(Object):
         for i, snake_piece in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
             self.game_board[int(snake_piece.x)][int(snake_piece.y)] = id
+
 
     def update_head_graphics(self):
         body_direction = self.body[1] - self.body[0]
@@ -193,17 +196,16 @@ class Snake(Object):
         self.play_crunch_sound()
 
     def watch(self):
-        head_x, head_y = self.get_position()
-        x_axis: list[tuple[int, int]] = []
-        y_axis: list[tuple[int, int]] = []
-        for row in self.game_board:
-            for col in row:
-                if row == head_x:
-                    x_axis.append((row, col))
-                elif col == head_y:
-                    y_axis.append((row, col))
+        head: Vector2 = self.get_head_position()
+        x_axis: list[int] = self.game_board[int(head.x)]
+        y_axis: list[int] = []
+        for x in range(self.game_board.shape[1]):
+            y_axis.append(self.game_board[x][int(head.y)])
         return x_axis, y_axis
 
     def call_brain(self):
         x_axis, y_axis = self.watch()
+        action = self.brain.call_brain(
+            x_axis, y_axis, self.get_head_position())
+        return action
 

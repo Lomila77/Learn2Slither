@@ -1,6 +1,6 @@
 import pygame
 
-
+LEARNING_RATE = 0.9
 
 CELL_SIZE = 40
 FRAMERATE = 60

@@ -60,21 +60,23 @@ class Board:
                 # TODO: AI input ?
                 if event.type == SCREEN_UPDATE:
                     self.snake.move(self.snake.direction)
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.game_over()
-                    if event.key == pygame.K_UP:
-                        if self.snake.direction.y != 1:
-                            self.snake.move(UP)
-                    if event.key == pygame.K_DOWN:
-                        if self.snake.direction.y != -1:
-                            self.snake.move(DOWN)
-                    if event.key == pygame.K_RIGHT:
-                        if self.snake.direction.x != -1:
-                            self.snake.move(RIGHT)
-                    if event.key == pygame.K_LEFT:
-                        if self.snake.direction.x != 1:
-                            self.snake.move(LEFT)
+                # if event.type == pygame.KEYDOWN:
+                #     if event.key == pygame.K_ESCAPE:
+                #         self.game_over()
+                #     if event.key == pygame.K_UP:
+                #         if self.snake.direction.y != 1:
+                #             self.snake.move(UP)
+                #     if event.key == pygame.K_DOWN:
+                #         if self.snake.direction.y != -1:
+                #             self.snake.move(DOWN)
+                #     if event.key == pygame.K_RIGHT:
+                #         if self.snake.direction.x != -1:
+                #             self.snake.move(RIGHT)
+                #     if event.key == pygame.K_LEFT:
+                #         if self.snake.direction.x != 1:
+                #             self.snake.move(LEFT)
+                action = self.snake.call_brain()
+                self.snake.move(action)
             self.check_collision()
             self.screen.fill(self.background_color)
             self.draw_grass()
