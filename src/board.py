@@ -5,11 +5,6 @@ from pygame.math import Vector2
 import sys
 import numpy as np
 from src.config import (
-    SNAKE_HEAD,
-    SNAKE_BODY,
-    GREEN_APPLE,
-    RED_APPLE,
-    EMPTY_CASE,
     CELL_SIZE,
     FRAMERATE,
     SCREEN_UPDATE,
@@ -17,7 +12,12 @@ from src.config import (
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
-from src.utils import UP, DOWN, LEFT, RIGHT
+from src.utils import (
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+)
 
 
 # TODO: parfois quand le jeu commence le snake est mal positionner et se marche dessus directe

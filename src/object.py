@@ -2,9 +2,10 @@ import pygame
 from pygame.math import Vector2
 from abc import ABC, abstractmethod
 from src.utils import get_random_position
-from src.config import (
-    EMPTY_CASE, GREEN_APPLE, RED_APPLE, SNAKE_HEAD, SNAKE_BODY, CELL_SIZE
+from src.utils import (
+    EMPTY_CASE, GREEN_APPLE, RED_APPLE, SNAKE_HEAD, SNAKE_BODY
 )
+from src.config import CELL_SIZE
 
 
 class Object(ABC):

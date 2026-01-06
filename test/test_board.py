@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from src.config import GREEN_APPLE
+from src.utils import GREEN_APPLE
 from src.board import Board
 
 

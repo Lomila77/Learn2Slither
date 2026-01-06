@@ -1,10 +1,18 @@
 import pygame
 from pygame.math import Vector2
-from src.config import SNAKE_HEAD, SNAKE_BODY, EMPTY_CASE, CELL_SIZE
+from src.config import CELL_SIZE
 from src.brain import Brain
 from src.object import Object
 from src.utils import get_random_position
-from src.utils import UP, DOWN, LEFT, RIGHT
+from src.utils import (
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    SNAKE_HEAD,
+    SNAKE_BODY,
+    EMPTY_CASE
+)
 
 
 class Snake(Object):

@@ -1,6 +1,6 @@
 import pytest
 from src.snake import Snake
-from src.config import SNAKE_HEAD, SNAKE_BODY
+from src.utils import SNAKE_HEAD, SNAKE_BODY
 
 
 def test_init_ok(empty_board):
