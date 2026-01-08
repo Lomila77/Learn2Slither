@@ -23,6 +23,7 @@ SYMBOLS = {
     6: '  ',
 }
 
+
 def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     valid_positions: list[tuple[int, int]] = []
     for i, row in enumerate(board):

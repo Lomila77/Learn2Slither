@@ -13,7 +13,7 @@ from src.snake import Snake
 
 
 class Board:
-    def __init__(self, shape: list[int], training_mode=False) -> None:
+    def __init__(self, shape: list[int], training_mode=False, ai_mode=False) -> None:
         if len(shape) != 2:
             raise ValueError("Need to be a 2d map")
         if not isinstance(
@@ -25,13 +25,17 @@ class Board:
         if shape[0] < 10 and shape[1] < 10:
             raise ValueError("Too small, higher than 10 pls")
         if training_mode:
-
             self.interface = False
             self.training_mode = True
+            self.ai_player = True
+        elif ai_mode:
+            self.interface = True
+            self.training_mode = False
+            self.ai_player = True
         else:
             self.interface = True
             self.training_mode = False
-        self.shape = Vector2(shape[0], shape[1])
+            self.ai_player = False
 
         if self.interface:
             pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -43,13 +47,12 @@ class Board:
             pygame.time.set_timer(SCREEN_UPDATE, SPEED)
             self.background_color = (175, 215, 70)
             self.game_font = pygame.font.Font('font/PoetsenOne-Regular.ttf', 25)
-        #
 
         self.board = np.zeros((shape[0], shape[1]))
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         self.snake: Snake = self.create_snake()
-        self.create_wall()
+        self.walls: list = self.create_wall()
         print("Starting the game")
 
     def play(self):
@@ -59,15 +62,17 @@ class Board:
                 if self.training_mode:
                     action = self.snake.call_brain()
                     self.snake.move(action)
-                self.check_collision()
-                if self.interface:
+                    self.display()
+                    if self.is_finished():
+                        self.game_over()
+                    time.sleep(SPEED / 1000)
+                else:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT or self.is_finished():
                             self.game_over()
-                        # TODO: AI input ?
                         if event.type == SCREEN_UPDATE:
                             self.snake.move(self.snake.direction)
-                        if event.type == pygame.KEYDOWN and not self.training_mode:
+                        if event.type == pygame.KEYDOWN and not self.ai_player:
                             if event.key == pygame.K_ESCAPE:
                                 self.game_over()
                             if event.key == pygame.K_UP:
@@ -82,6 +87,10 @@ class Board:
                             if event.key == pygame.K_LEFT:
                                 if self.snake.direction.x != 1:
                                     self.snake.move(LEFT)
+                        elif self.ai_player:
+                            action = self.snake.call_brain()
+                            self.snake.move(action)
+
                     self.screen.fill(self.background_color)
                     self.draw_grass()
                     self.draw_wall()
@@ -90,11 +99,7 @@ class Board:
                     pygame.display.update()
                     self.display()
                     self.clock.tick(self.framerate)
-                else:
-                    self.display()
-                    if self.is_finished():
-                        self.game_over()
-                    time.sleep(SPEED / 1000)
+                self.check_collectible()
         except KeyboardInterrupt:
             self.game_over()
 
@@ -107,11 +112,11 @@ class Board:
 
     def draw_grass(self):
         grass_color = (167, 209, 61)
-        for row in range(int(self.shape[0])):
+        for row in range(int(self.board.shape[0])):
             color = False
             if row % 2 == 0: 
                 color = True
-            for col in range(int(self.shape[1])):
+            for col in range(int(self.board.shape[1])):
                 if col % 2 == 0 and color is True:
                     grass_rect = pygame.Rect(
                         col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
@@ -120,57 +125,67 @@ class Board:
                     grass_rect = pygame.Rect(
                         col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                     pygame.draw.rect(self.screen, grass_color, grass_rect)
-    
+
     def draw_wall(self):
         len_board = len(self.board) - 1
         len_row = len(self.board[0]) - 1
-        for i, row in enumerate(self.board):
-            for j in range(len(row)):
-                path = ''
-                if j == 0 and i == 0:
-                    path = 'graphics/coin_haut_gauche.png'
-                elif j == 0 and i == len_board:
-                    path = 'graphics/coin_haut_droit.png'
-                elif j == len_row and i == 0:
-                    path = 'graphics/coin_bas_gauche.png'
-                elif j == len_row and i == len_board:
-                    path = 'graphics/coin_bas_droit.png'
-                elif i == 0:
-                    path = 'graphics/bai_gauche.png'
-                elif i == len_board:
-                    path = 'graphics/bai_droit.png'
-                elif j == 0:
-                    path = 'graphics/bai_haut.png'
-                elif j == len_row:
-                    path = 'graphics/bai_bas.png'
-                else:
-                    continue
-                image = pygame.image.load(path).convert_alpha()
-                image = pygame.transform.scale(
+        for wall in self.walls:
+            path = ''
+            if wall.y == 0 and wall.x == 0:
+                path = 'graphics/coin_haut_gauche.png'
+            elif wall.y == 0 and wall.x == len_board:
+                path = 'graphics/coin_haut_droit.png'
+            elif wall.y == len_row and wall.x == 0:
+                path = 'graphics/coin_bas_gauche.png'
+            elif wall.y == len_row and wall.x == len_board:
+                path = 'graphics/coin_bas_droit.png'
+            elif wall.x == 0:
+                path = 'graphics/bai_gauche.png'
+            elif wall.x == len_board:
+                path = 'graphics/bai_droit.png'
+            elif wall.y == 0:
+                path = 'graphics/bai_haut.png'
+            elif wall.y == len_row:
+                path = 'graphics/bai_bas.png'
+            else:
+                continue
+            image = pygame.image.load(path).convert_alpha()
+            image = pygame.transform.scale(
                         image, (CELL_SIZE, CELL_SIZE))
-                wall_rect = pygame.Rect(
-                    i * CELL_SIZE,
-                    j * CELL_SIZE,
-                    CELL_SIZE,
-                    CELL_SIZE
-                )
-                self.screen.blit(image, wall_rect)
+            wall_rect = pygame.Rect(
+                wall.x * CELL_SIZE,
+                wall.y * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
+            )
+            self.screen.blit(image, wall_rect)
 
     def draw_score(self):
         score_text = f"{len(self.snake.body) - 3}"
         score_surface = self.game_font.render(
             score_text, True, (56, 74, 12))
-        score_x = int(CELL_SIZE * self.shape[0] - 60)
-        score_y = int(CELL_SIZE * self.shape[1] - 40)
+        score_x = int(CELL_SIZE * self.board.shape[0] - 60)
+        score_y = int(CELL_SIZE * self.board.shape[1] - 40)
         score_rect = score_surface.get_rect(center=(score_x, score_y))
         self.screen.blit(score_surface, score_rect)
 
     def create_wall(self):
         print("Build walls (water)")
-        self.board[0] = 5
-        self.board[-1] = 5
-        self.board[1:-1][0] = 5
-        self.board[1:-1][-1] = 5
+        # self.board[0] = 5
+        # self.board[-1] = 5
+        # self.board[1:-1][0] = 5
+        # self.board[1:-1][-1] = 5
+        walls: list[Vector2] = []
+        for i, row in enumerate(self.board):
+            for j, _ in enumerate(self.board):
+                if j == 0 or j == len(row) - 1:
+                    self.board[i][j] = 5
+                    walls.append(Vector2(i, j))
+                if i == 0 or i == len(self.board) - 1:
+                    self.board[i][j] = 5
+                    walls.append(Vector2(i, j))
+        return walls
+
 
     def create_green_apple(self, nb: int = 2):
         apples: list = []
@@ -198,7 +213,7 @@ class Board:
         self.snake = self.create_snake()
 
     def display(self):
-        os.system('clear')
+        #os.system('clear')
         separator = '    |    '
         symbols_len = len(SYMBOLS[0])
         width_board = len(self.board[0])
@@ -232,19 +247,15 @@ class Board:
         if self.snake.get_length() < 3:
             print("Snake too short...")
             return True
-        if not 0 <= self.snake.get_head_position().x < self.shape.x:
-            print("Snake is gone, good bye snaky snakie")
-            return True
-        if not 0 <= self.snake.get_head_position().y < self.shape.y:
-            print("Snake is gone, good bye snaky snakie")
-            return True
         if self.snake.get_head_position() in self.snake.get_body_position():
             self.snake.body.pop(0)
             print("Snake ate himself !!! Feed your snake !")
             return True
         pos = self.snake.get_head_position()
-        if self.board[int(pos.x)][int(pos.y)] == 5:
-            print("Snake is gone, good bye snaky snakie")
+        for wall in self.walls:
+            if pos.x == wall.x and pos.y == wall.y:
+                print("Snake is gone, good bye snaky snakie")
+                return True
         return False
     
     def game_over(self):
@@ -253,7 +264,7 @@ class Board:
         pygame.quit()
         sys.exit()
 
-    def check_collision(self):
+    def check_collectible(self):
         for apple in self.green_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
@@ -265,5 +276,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([30, 30], training_mode=False)
+    env = Board([30, 30])
     env.play()
