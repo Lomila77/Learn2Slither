@@ -1,4 +1,5 @@
 import pygame
+import numpy as np
 from pygame.math import Vector2
 from src.config import CELL_SIZE
 from src.brain import Brain
@@ -11,62 +12,65 @@ from src.utils import (
     RIGHT,
     SNAKE_HEAD,
     SNAKE_BODY,
-    EMPTY_CASE
+    EMPTY_CASE,
+    SYMBOLS
 )
 
 
 class Snake(Object):
 
-    def __init__(self, board: list[list[int]]) -> None:
+    def __init__(self, board: list[list[int]], interface: bool = True) -> None:
         self.head_id = SNAKE_HEAD
         self.body_id = SNAKE_BODY
         # TODO: modifier la direction de base
         self.direction = Vector2(1, 0)
         self.game_board = board
-        self.image_body_bl = pygame.transform.scale(
-            pygame.image.load('graphics/body_bl.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE)
-        )
-        self.image_body_br = pygame.transform.scale(
-            pygame.image.load('graphics/body_br.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_body_tl = pygame.transform.scale(
-            pygame.image.load('graphics/body_tl.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_body_tr = pygame.transform.scale(
-            pygame.image.load('graphics/body_tr.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_body_hor = pygame.transform.scale(
-            pygame.image.load('graphics/body_horizontal.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_body_ver = pygame.transform.scale(
-            pygame.image.load('graphics/body_vertical.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_head_left = pygame.transform.scale(
-            pygame.image.load('graphics/head_left.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_head_right = pygame.transform.scale(
-            pygame.image.load('graphics/head_right.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_head_up = pygame.transform.scale(
-            pygame.image.load('graphics/head_up.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_head_down = pygame.transform.scale(
-            pygame.image.load('graphics/head_down.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_tail_left = pygame.transform.scale(
-            pygame.image.load('graphics/tail_left.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_tail_right = pygame.transform.scale(
-            pygame.image.load('graphics/tail_right.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_tail_up = pygame.transform.scale(
-            pygame.image.load('graphics/tail_up.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.image_tail_down = pygame.transform.scale(
-            pygame.image.load('graphics/tail_down.png').convert_alpha(),
-            (CELL_SIZE, CELL_SIZE))
-        self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
+        self.interface = interface
+        if self.interface:
+            self.image_body_bl = pygame.transform.scale(
+                pygame.image.load('graphics/body_bl.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE)
+            )
+            self.image_body_br = pygame.transform.scale(
+                pygame.image.load('graphics/body_br.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_body_tl = pygame.transform.scale(
+                pygame.image.load('graphics/body_tl.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_body_tr = pygame.transform.scale(
+                pygame.image.load('graphics/body_tr.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_body_hor = pygame.transform.scale(
+                pygame.image.load('graphics/body_horizontal.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_body_ver = pygame.transform.scale(
+                pygame.image.load('graphics/body_vertical.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_head_left = pygame.transform.scale(
+                pygame.image.load('graphics/head_left.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_head_right = pygame.transform.scale(
+                pygame.image.load('graphics/head_right.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_head_up = pygame.transform.scale(
+                pygame.image.load('graphics/head_up.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_head_down = pygame.transform.scale(
+                pygame.image.load('graphics/head_down.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_tail_left = pygame.transform.scale(
+                pygame.image.load('graphics/tail_left.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_tail_right = pygame.transform.scale(
+                pygame.image.load('graphics/tail_right.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_tail_up = pygame.transform.scale(
+                pygame.image.load('graphics/tail_up.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.image_tail_down = pygame.transform.scale(
+                pygame.image.load('graphics/tail_down.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE))
+            self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
         x, y = get_random_position(self.game_board)
         self.body: list[Vector2] = [Vector2(x, y)]
@@ -91,11 +95,10 @@ class Snake(Object):
         if self.get_length() != 3:
             print(self.body)
             raise ValueError("The snake is too short... No place available")
-        
+
         for i, snake_piece in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
             self.game_board[int(snake_piece.x)][int(snake_piece.y)] = id
-
 
     def update_head_graphics(self):
         body_direction = self.body[1] - self.body[0]
@@ -193,7 +196,18 @@ class Snake(Object):
     def eat(self, nutrient: int = 0):
         print(f"Snack {nutrient}")
         self.move(self.direction, -1 + nutrient)
-        self.play_crunch_sound()
+        if self.interface:
+            self.play_crunch_sound()
+    
+    def vision(self):
+        x_axis, y_axis = self.watch()
+        board: np.ndarray = np.full(self.game_board.shape, 6)
+        head = self.get_head_position()
+        board[int(head.x)] = x_axis
+        for index, row in enumerate(board):
+            board[index][int(head.y)] = y_axis[index]
+        return board
+
 
     def watch(self):
         head: Vector2 = self.get_head_position()

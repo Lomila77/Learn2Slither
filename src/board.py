@@ -1,8 +1,5 @@
-
-from gc import is_finalized
-import pygame
+import os, pygame, time, sys
 from pygame.math import Vector2
-import sys
 import numpy as np
 from src.config import (
     CELL_SIZE,
@@ -10,19 +7,13 @@ from src.config import (
     SCREEN_UPDATE,
     SPEED
 )
+from src.utils import UP, DOWN, LEFT, RIGHT, SYMBOLS
 from src.object import GreenApple, RedApple
 from src.snake import Snake
-from src.utils import (
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT,
-)
 
 
-# TODO: parfois quand le jeu commence le snake est mal positionner et se marche dessus directe
 class Board:
-    def __init__(self, shape: list[int]) -> None:
+    def __init__(self, shape: list[int], training_mode=False) -> None:
         if len(shape) != 2:
             raise ValueError("Need to be a 2d map")
         if not isinstance(
@@ -33,57 +24,79 @@ class Board:
             raise ValueError("Shape must be 2d int array")
         if shape[0] < 10 and shape[1] < 10:
             raise ValueError("Too small, higher than 10 pls")
-        # TODO: TEST
-        pygame.mixer.pre_init(44100, -16, 2, 512)
-        pygame.init()
+        if training_mode:
+
+            self.interface = False
+            self.training_mode = True
+        else:
+            self.interface = True
+            self.training_mode = False
         self.shape = Vector2(shape[0], shape[1])
-        self.screen = pygame.display.set_mode(
-            Vector2(CELL_SIZE * shape[0], CELL_SIZE * shape[1]))
-        self.clock = pygame.time.Clock()
-        self.framerate = FRAMERATE
-        pygame.time.set_timer(SCREEN_UPDATE, SPEED)
-        self.background_color = (175, 215, 70)
-        self.game_font = pygame.font.Font('font/PoetsenOne-Regular.ttf', 25)
+
+        if self.interface:
+            pygame.mixer.pre_init(44100, -16, 2, 512)
+            pygame.init()
+            self.screen = pygame.display.set_mode(
+                Vector2(CELL_SIZE * shape[0], CELL_SIZE * shape[1]))
+            self.clock = pygame.time.Clock()
+            self.framerate = FRAMERATE
+            pygame.time.set_timer(SCREEN_UPDATE, SPEED)
+            self.background_color = (175, 215, 70)
+            self.game_font = pygame.font.Font('font/PoetsenOne-Regular.ttf', 25)
         #
 
         self.board = np.zeros((shape[0], shape[1]))
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         self.snake: Snake = self.create_snake()
+        self.create_wall()
         print("Starting the game")
 
     def play(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or self.is_finished():
-                    self.game_over()
-                # TODO: AI input ?
-                if event.type == SCREEN_UPDATE:
-                    self.snake.move(self.snake.direction)
-                # if event.type == pygame.KEYDOWN:
-                #     if event.key == pygame.K_ESCAPE:
-                #         self.game_over()
-                #     if event.key == pygame.K_UP:
-                #         if self.snake.direction.y != 1:
-                #             self.snake.move(UP)
-                #     if event.key == pygame.K_DOWN:
-                #         if self.snake.direction.y != -1:
-                #             self.snake.move(DOWN)
-                #     if event.key == pygame.K_RIGHT:
-                #         if self.snake.direction.x != -1:
-                #             self.snake.move(RIGHT)
-                #     if event.key == pygame.K_LEFT:
-                #         if self.snake.direction.x != 1:
-                #             self.snake.move(LEFT)
-                action = self.snake.call_brain()
-                self.snake.move(action)
-            self.check_collision()
-            self.screen.fill(self.background_color)
-            self.draw_grass()
-            self.draw_object()
-            self.draw_score()
-            pygame.display.update()
-            self.clock.tick(self.framerate)
+        try:
+            self.display()
+            while True:
+                if self.training_mode:
+                    action = self.snake.call_brain()
+                    self.snake.move(action)
+                self.check_collision()
+                if self.interface:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT or self.is_finished():
+                            self.game_over()
+                        # TODO: AI input ?
+                        if event.type == SCREEN_UPDATE:
+                            self.snake.move(self.snake.direction)
+                        if event.type == pygame.KEYDOWN and not self.training_mode:
+                            if event.key == pygame.K_ESCAPE:
+                                self.game_over()
+                            if event.key == pygame.K_UP:
+                                if self.snake.direction.y != 1:
+                                    self.snake.move(UP)
+                            if event.key == pygame.K_DOWN:
+                                if self.snake.direction.y != -1:
+                                    self.snake.move(DOWN)
+                            if event.key == pygame.K_RIGHT:
+                                if self.snake.direction.x != -1:
+                                    self.snake.move(RIGHT)
+                            if event.key == pygame.K_LEFT:
+                                if self.snake.direction.x != 1:
+                                    self.snake.move(LEFT)
+                    self.screen.fill(self.background_color)
+                    self.draw_grass()
+                    self.draw_wall()
+                    self.draw_object()
+                    self.draw_score()
+                    pygame.display.update()
+                    self.display()
+                    self.clock.tick(self.framerate)
+                else:
+                    self.display()
+                    if self.is_finished():
+                        self.game_over()
+                    time.sleep(SPEED / 1000)
+        except KeyboardInterrupt:
+            self.game_over()
 
     def draw_object(self):
         for apple in self.green_apple:
@@ -107,6 +120,41 @@ class Board:
                     grass_rect = pygame.Rect(
                         col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                     pygame.draw.rect(self.screen, grass_color, grass_rect)
+    
+    def draw_wall(self):
+        len_board = len(self.board) - 1
+        len_row = len(self.board[0]) - 1
+        for i, row in enumerate(self.board):
+            for j in range(len(row)):
+                path = ''
+                if j == 0 and i == 0:
+                    path = 'graphics/coin_haut_gauche.png'
+                elif j == 0 and i == len_board:
+                    path = 'graphics/coin_haut_droit.png'
+                elif j == len_row and i == 0:
+                    path = 'graphics/coin_bas_gauche.png'
+                elif j == len_row and i == len_board:
+                    path = 'graphics/coin_bas_droit.png'
+                elif i == 0:
+                    path = 'graphics/bai_gauche.png'
+                elif i == len_board:
+                    path = 'graphics/bai_droit.png'
+                elif j == 0:
+                    path = 'graphics/bai_haut.png'
+                elif j == len_row:
+                    path = 'graphics/bai_bas.png'
+                else:
+                    continue
+                image = pygame.image.load(path).convert_alpha()
+                image = pygame.transform.scale(
+                        image, (CELL_SIZE, CELL_SIZE))
+                wall_rect = pygame.Rect(
+                    i * CELL_SIZE,
+                    j * CELL_SIZE,
+                    CELL_SIZE,
+                    CELL_SIZE
+                )
+                self.screen.blit(image, wall_rect)
 
     def draw_score(self):
         score_text = f"{len(self.snake.body) - 3}"
@@ -117,23 +165,30 @@ class Board:
         score_rect = score_surface.get_rect(center=(score_x, score_y))
         self.screen.blit(score_surface, score_rect)
 
+    def create_wall(self):
+        print("Build walls (water)")
+        self.board[0] = 5
+        self.board[-1] = 5
+        self.board[1:-1][0] = 5
+        self.board[1:-1][-1] = 5
+
     def create_green_apple(self, nb: int = 2):
         apples: list = []
         for _ in range(nb):
-            apples.append(GreenApple(self.board))
+            apples.append(GreenApple(self.board, self.interface))
         print("Create green apple")
         return apples
 
     def create_red_apple(self, nb: int = 1):
         apples: list = []
         for _ in range(nb):
-            apples.append(RedApple(self.board))
+            apples.append(RedApple(self.board, self.interface))
         print("Create green apple")
         return apples
 
     def create_snake(self):
         print("Create lovely snake")
-        return Snake(self.board)
+        return Snake(self.board, self.interface)
 
     def reset(self):
         self.board = np.zeros_like(self.board)
@@ -142,14 +197,36 @@ class Board:
         self.red_apple = self.create_red_apple()
         self.snake = self.create_snake()
 
-    # TODO: Show via pygame ou en terminal ? Je crois que le sujet en parle
-    def show(self):
-        board = ""
-        for row in range(len(self.board)):
-            for col in range(len(self.board[0])):
-                board += f"[{self.board[row][col]}] "
-            board += "\n"
-        print(board)
+    def display(self):
+        os.system('clear')
+        separator = '    |    '
+        symbols_len = len(SYMBOLS[0])
+        width_board = len(self.board[0])
+        snake_vision = self.snake.vision()
+        print("BOARD".center(
+            width_board * symbols_len) + separator + "SNAKE VISION".center(
+                width_board * symbols_len))
+        underline = "=" * width_board * symbols_len
+        print(underline + separator + underline)
+
+        board_transposed = self.board.T
+        vision_transposed = snake_vision.T
+        for i in range(len(board_transposed)):
+            line1 = ''.join(
+                SYMBOLS.get(cell, '?') for cell in board_transposed[i])
+            line2 = ''.join(
+                SYMBOLS.get(cell, '?') for cell in vision_transposed[i])
+            print(line1 + separator + line2)
+        if self.training_mode:
+            snake_area = self.snake.brain.get_area(self.snake.get_head_position())
+            print(f"⬆️ {[f"{val:.2f} " for val in snake_area[0]]}".center(
+                width_board * symbols_len))
+            print(f"⬇️ {[f"{val:.2f} " for val in snake_area[1]]}".center(
+                width_board * symbols_len))
+            print(f"⬅️ {[f"{val:.2f} " for val in snake_area[2]]}".center(
+                    width_board * symbols_len))
+            print(f"➡️ {[f"{val:.2f} " for val in snake_area[3]]}".center(
+                    width_board * symbols_len))
 
     def is_finished(self):
         if self.snake.get_length() < 3:
@@ -162,8 +239,12 @@ class Board:
             print("Snake is gone, good bye snaky snakie")
             return True
         if self.snake.get_head_position() in self.snake.get_body_position():
+            self.snake.body.pop(0)
             print("Snake ate himself !!! Feed your snake !")
             return True
+        pos = self.snake.get_head_position()
+        if self.board[int(pos.x)][int(pos.y)] == 5:
+            print("Snake is gone, good bye snaky snakie")
         return False
     
     def game_over(self):
@@ -171,7 +252,6 @@ class Board:
         print(f"Snake Length: {self.snake.get_length()}")
         pygame.quit()
         sys.exit()
-
 
     def check_collision(self):
         for apple in self.green_apple:
@@ -185,5 +265,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([30, 30])
+    env = Board([30, 30], training_mode=False)
     env.play()

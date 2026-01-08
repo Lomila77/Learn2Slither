@@ -49,6 +49,18 @@ class Brain:
         for x in range(self.board.shape[0]):
             self.board[x][int(state.y)] = y_axis[x]
 
+    def get_area(self, state: Vector2) -> list[list[float]]:
+        area = []
+        up = state + UP
+        area.append(self.q_table[int(up.x)][int(up.y)])
+        down = state + DOWN
+        area.append(self.q_table[int(down.x)][int(down.y)])
+        left = state + LEFT
+        area.append(self.q_table[int(left.x)][int(left.y)])
+        right = state + RIGHT
+        area.append(self.q_table[int(right.x)][int(right.y)])
+        return area
+
     def get_reward(self, state: Vector2) -> int:
         id = self.board[int(state.x)][int(state.y)]
         if id == EMPTY_CASE or id == SNAKE_HEAD:
@@ -62,16 +74,12 @@ class Brain:
         print(f"ID = {id}")
         # elif id == WALL:
         #     return -20
-    
-    def get_state(self, position: Vector2) -> list[int]:
-        return self.q_table[position.x][position.y]
 
     def q_function(
         self,
         reward: float,
-        state: ,
-        action: Vector2,
-        next_state: Vector2,
+        state: float,
+        next_state: float,
     ) -> float:
         # Cherche a maximiser l'esperance
         # r + learning_rate * max(action[t + 1]) * q_function(state[t + 1], action[t+1])
@@ -101,5 +109,5 @@ class Brain:
                 self.q_table[int(tmp_next.x)][int(tmp_next.y)])
             print(f"TYPE: {type(next_state)}")
             self.q_table[int(state.x)][int(state.y)][action_index] = self.q_function(
-                reward, self.board[state.x][state.y], action_index, next_state)
+                reward, self.board[int(state.x)][int(state.y)], next_state)
             return self.actions[action_index]

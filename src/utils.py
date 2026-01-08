@@ -11,6 +11,17 @@ SNAKE_HEAD = 1
 SNAKE_BODY = 2
 GREEN_APPLE = 3
 RED_APPLE = 4
+WALL = 5
+
+SYMBOLS = {
+    0: '[]',
+    1: '🟢',
+    2: '🟩',
+    3: '🍏',
+    4: '🍎',
+    5: '🌊',
+    6: '  ',
+}
 
 def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     valid_positions: list[tuple[int, int]] = []
