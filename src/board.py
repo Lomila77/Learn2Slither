@@ -1,4 +1,4 @@
-import os, pygame, time, sys
+import pygame, time, sys
 from pygame.math import Vector2
 import numpy as np
 from src.config import (
@@ -28,6 +28,9 @@ class Board:
             self.interface = False
             self.training_mode = True
             self.ai_player = True
+            print("Enter epochs: ")
+            self.epochs = int(input())
+            
         elif ai_mode:
             self.interface = True
             self.training_mode = False
@@ -186,7 +189,6 @@ class Board:
                     walls.append(Vector2(i, j))
         return walls
 
-
     def create_green_apple(self, nb: int = 2):
         apples: list = []
         for _ in range(nb):
@@ -208,6 +210,7 @@ class Board:
     def reset(self):
         self.board = np.zeros_like(self.board)
         print("Game reset")
+        self.walls = self.create_wall()
         self.green_apple = self.create_green_apple()
         self.red_apple = self.create_red_apple()
         self.snake = self.create_snake()
@@ -261,8 +264,13 @@ class Board:
     def game_over(self):
         print("\n=== GAME OVER ===")
         print(f"Snake Length: {self.snake.get_length()}")
-        pygame.quit()
-        sys.exit()
+        if self.interface:
+            pygame.quit()
+            sys.exit()
+        elif self.training_mode:
+            self.reset()
+            self.
+
 
     def check_collectible(self):
         for apple in self.green_apple:
@@ -276,5 +284,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([30, 30])
+    env = Board([30, 30], training_mode=True)
     env.play()

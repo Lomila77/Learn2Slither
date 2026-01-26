@@ -11,14 +11,10 @@ from src.utils import (
     SNAKE_BODY,
     GREEN_APPLE,
     RED_APPLE,
-    EMPTY_CASE
+    EMPTY_CASE,
+    WALL
 )
 
-
-# QUESTION :
-    # Comment on place les rewards ?
-
-#TODO: Rajouter un "WALL" ?
 
 class Brain:
     def __init__(
@@ -64,16 +60,16 @@ class Brain:
     def get_reward(self, state: Vector2) -> int:
         id = self.board[int(state.x)][int(state.y)]
         if id == EMPTY_CASE or id == SNAKE_HEAD:
-            return 0
+            return -1
         elif id == RED_APPLE:
             return -10
         elif id == GREEN_APPLE:
             return +10
         elif id == SNAKE_BODY:
             return -20
+        elif id == WALL:
+            return -20
         print(f"ID = {id}")
-        # elif id == WALL:
-        #     return -20
 
     def q_function(
         self,
@@ -81,28 +77,22 @@ class Brain:
         state: float,
         next_state: float,
     ) -> float:
-        # Cherche a maximiser l'esperance
-        # r + learning_rate * max(action[t + 1]) * q_function(state[t + 1], action[t+1])
         esperance = state + self.lr * (reward + (self.lr - 0.01) * next_state - state)
         self.lr -= 0.01
         return esperance
-
-    def is_finished(self):
-        return False
 
     def take_action(self, state):
         if uniform(0, 1) < self.epsilon_greedy:
             return randint(0, 3)
         return np.argmax(self.q_table[int(state.x)][int(state.y)])
 
-    # TODO: rename par actionS
     def call_brain(
         self, x_axis: list[int], y_axis: list[int], state: Vector2
     ) -> Vector2:
         if not self.is_finished():
             self.update_board(x_axis, y_axis, state)
-            reward: int = self.get_reward(state)
             action_index: int = self.take_action(state)
+            reward: int = self.get_reward(state) # next_etat pas current
             self.movements.append(self.actions[action_index])
             tmp_next = state + self.actions[action_index]
             next_state: Vector2 = np.argmax(
