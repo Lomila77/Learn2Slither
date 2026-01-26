@@ -12,14 +12,19 @@ from src.utils import (
     RIGHT,
     SNAKE_HEAD,
     SNAKE_BODY,
+    WALL,
     EMPTY_CASE,
-    SYMBOLS
 )
 
 
 class Snake(Object):
 
-    def __init__(self, board: list[list[int]], interface: bool = True) -> None:
+    def __init__(
+        self,
+        board: list[list[int]],
+        interface: bool = True,
+        load_checkpoint: bool = False
+    ) -> None:
         self.head_id = SNAKE_HEAD
         self.body_id = SNAKE_BODY
         # TODO: modifier la direction de base
@@ -72,12 +77,18 @@ class Snake(Object):
                 (CELL_SIZE, CELL_SIZE))
             self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
-        x, y = get_random_position(self.game_board)
+        x, y = get_random_position(self.game_board, [WALL])
         self.body: list[Vector2] = [Vector2(x, y)]
 
         x_axis, y_axis = self.watch()
         self.brain = Brain(
-            self.game_board.shape, self.get_head_position(), x_axis, y_axis)
+            self.game_board.shape,
+            self.get_head_position(),
+            x_axis,
+            y_axis,
+            self,
+            load_checkpoint
+        )
 
         for _ in range(2):
             last_pos = self.body[-1]
@@ -207,7 +218,6 @@ class Snake(Object):
         for index, row in enumerate(board):
             board[index][int(head.y)] = y_axis[index]
         return board
-
 
     def watch(self):
         head: Vector2 = self.get_head_position()

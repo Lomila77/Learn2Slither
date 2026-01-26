@@ -1,5 +1,7 @@
 import random
+import pickle
 from pygame.math import Vector2
+from src.config import LOAD_WEIGHTS
 
 UP = Vector2(0, -1)
 DOWN = Vector2(0, 1)
@@ -13,14 +15,25 @@ GREEN_APPLE = 3
 RED_APPLE = 4
 WALL = 5
 
+DIRECTIONS_ICON = [
+    '⬆️',
+    '⬇️',
+    '⬅️',
+    '➡️',
+]
+
 SYMBOLS = {
-    0: '[]',
+    0: '⬛',
     1: '🟢',
     2: '🟩',
     3: '🍏',
     4: '🍎',
     5: '🌊',
     6: '  ',
+    7: '⬆️',
+    8: '⬇️',
+    9: '⬅️',
+    10: '➡️',
 }
 
 
@@ -36,3 +49,9 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
 
     x, y = random.choice(valid_positions)
     return x, y
+
+
+if __name__ == "__main__":
+    with open(LOAD_WEIGHTS, "rb") as f:
+        q_table = pickle.load(f)
+    print(f"Q_TABLE: {q_table}")
