@@ -1,7 +1,9 @@
+import pickle
+from typing import Any
 import numpy as np
 from random import randint, uniform
 from pygame.math import Vector2
-from src.config import LEARNING_RATE
+from src.config import LEARNING_RATE, SAVE_FILE_AS, LOAD_WEIGHTS
 from src.utils import (
     UP,
     DOWN,
@@ -22,7 +24,9 @@ class Brain:
         shape: list[int],
         starting_position: Vector2,
         x_axis: list[int],
-        y_axis: list[int]
+        y_axis: list[int],
+        snake: Any,
+        load_q_table: bool = False
     ) -> None:
         self.actions = [
             UP,
@@ -30,35 +34,29 @@ class Brain:
             LEFT,
             RIGHT
         ]
-
-        self.q_table = np.zeros((shape[0], shape[1], len(self.actions)))
+        self.q_table: tuple = {}
+        if load_q_table:
+            self.q_table = self.load_q_table()
         self.lr = LEARNING_RATE
-        self.board = np.zeros((shape[0], shape[1]))
         self.epsilon_greedy: float = 0.1
-        self.movements: list[Vector2] = []
+        self.prev_state: tuple = None
+        self.prev_action: int = 0
+        self.prev_reward: int = 0
 
-    def update_board(
-        self, x_axis: list[int], y_axis: list[int], state: Vector2
-    ) -> None:
-        self.board = np.zeros_like(self.board)
-        self.board[int(state.x)] = x_axis
-        for x in range(self.board.shape[0]):
-            self.board[x][int(state.y)] = y_axis[x]
+    def reset(self):
+        self.prev_state = None
+        self.lr = LEARNING_RATE
 
-    def get_area(self, state: Vector2) -> list[list[float]]:
-        area = []
-        up = state + UP
-        area.append(self.q_table[int(up.x)][int(up.y)])
-        down = state + DOWN
-        area.append(self.q_table[int(down.x)][int(down.y)])
-        left = state + LEFT
-        area.append(self.q_table[int(left.x)][int(left.y)])
-        right = state + RIGHT
-        area.append(self.q_table[int(right.x)][int(right.y)])
-        return area
+    def load_q_table(self):
+        with open(LOAD_WEIGHTS, "rb") as f:
+            q_table = pickle.load(f)
+        return q_table
 
-    def get_reward(self, state: Vector2) -> int:
-        id = self.board[int(state.x)][int(state.y)]
+    def save_q_table(self):
+        with open(SAVE_FILE_AS, "wb") as f:
+            pickle.dump(self.q_table, f)
+
+    def get_reward(self, id: int) -> int:
         if id == EMPTY_CASE or id == SNAKE_HEAD:
             return -1
         elif id == RED_APPLE:
@@ -73,31 +71,46 @@ class Brain:
 
     def q_function(
         self,
-        reward: float,
+        prev_state: float,
+        prev_reward: float,
         state: float,
-        next_state: float,
     ) -> float:
-        esperance = state + self.lr * (reward + (self.lr - 0.01) * next_state - state)
+        esperance = prev_state + self.lr * (
+            prev_reward + (self.lr - 0.01) * state - prev_state)
         self.lr -= 0.01
         return esperance
 
     def take_action(self, state):
         if uniform(0, 1) < self.epsilon_greedy:
             return randint(0, 3)
-        return np.argmax(self.q_table[int(state.x)][int(state.y)])
+        return np.argmax(self.q_table[state])
+
+    def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
+        def get_obj(array: list[int]):
+            for i, obj in enumerate(array):
+                if obj != EMPTY_CASE:
+                    return (i, obj)
+        top = get_obj(x_axis[:int(pos.x) - 1: -1])
+        bot = get_obj(x_axis[int(pos.x) + 1:])
+        left = get_obj(y_axis[:int(pos.y) - 1: -1])
+        right = get_obj(y_axis[int(pos.y) + 1:])
+        return (top, bot, left, right)
 
     def call_brain(
-        self, x_axis: list[int], y_axis: list[int], state: Vector2
+        self, x_axis: list[int], y_axis: list[int], pos: Vector2
     ) -> Vector2:
-        if not self.is_finished():
-            self.update_board(x_axis, y_axis, state)
-            action_index: int = self.take_action(state)
-            reward: int = self.get_reward(state) # next_etat pas current
-            self.movements.append(self.actions[action_index])
-            tmp_next = state + self.actions[action_index]
-            next_state: Vector2 = np.argmax(
-                self.q_table[int(tmp_next.x)][int(tmp_next.y)])
-            print(f"TYPE: {type(next_state)}")
-            self.q_table[int(state.x)][int(state.y)][action_index] = self.q_function(
-                reward, self.board[int(state.x)][int(state.y)], next_state)
-            return self.actions[action_index]
+        state = self.get_state(x_axis, y_axis, pos)
+        if state not in self.q_table:
+            self.q_table[state] = [0.0, 0.0, 0.0, 0.0]
+        if self.prev_state is not None:
+            self.q_table[self.prev_state][self.prev_action] = self.q_function(
+                self.prev_reward,
+                self.q_table[self.prev_state][self.prev_action],
+                max(self.q_table[state])
+            )
+        action_index: int = self.take_action(state)
+        reward: int = self.get_reward(x_axis[int(pos.x)])
+        self.prev_state = state
+        self.prev_action = action_index
+        self.prev_reward = reward
+        return self.actions[action_index]
