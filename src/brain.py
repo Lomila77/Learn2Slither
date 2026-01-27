@@ -69,7 +69,11 @@ class Brain:
         with open(directory + filename + "_config" + ".json", "w") as f:
             json.dump(data, f)
 
-    def get_reward(self, id: int) -> int:
+    def get_reward(self, x_axis: list[int], y_axis: list[int], pos: Vector2, action: Vector2) -> int:
+        if action.x != 0:
+            id = x_axis[int(pos.x + action.x)]
+        if action.y != 0:
+            id = y_axis[int(pos.y + action.y)]
         if id == EMPTY_CASE or id == SNAKE_HEAD:
             return -1
         elif id == RED_APPLE:
@@ -103,10 +107,12 @@ class Brain:
             for i, obj in enumerate(array):
                 if obj != EMPTY_CASE:
                     return (i, obj)
-        axis = y_axis[:int(pos.x)]
+        # y_axis: vertical line (vary y) at fixed x
+        # x_axis: horizontal line (vary x) at fixed y
+        axis = y_axis[:int(pos.y)]
         top = get_obj(axis[:: -1])
-        bot = get_obj(y_axis[int(pos.x) + 1:])
-        axis = x_axis[:int(pos.y)]
+        bot = get_obj(y_axis[int(pos.y) + 1:])
+        axis = x_axis[:int(pos.x)]
         left = get_obj(axis[:: -1])
         right = get_obj(x_axis[int(pos.y) + 1:])
         return (top, bot, left, right)
@@ -125,10 +131,10 @@ class Brain:
             )
         action_index: int = self.take_action(state)
         print(f"X_AXIS: {x_axis}")
-        print(f"POS: {int(pos.x)}")
-        print(f"X_AXIS[POS.X]: {x_axis[int(pos.x)]}")
-        print(f"ACTION_INDEX_X: {int(self.actions[action_index].x)}")
-        reward: int = self.get_reward(x_axis[int(pos.x) + int(self.actions[action_index].x)])
+        print(f"X_AXIS: {y_axis}")
+        print(f"POS: {pos}")
+        print(f"ACTION_INDEX_X: {self.actions[action_index]}")
+        reward: int = self.get_reward(x_axis, y_axis, pos, self.actions[action_index])
         self.prev_state = state
         self.prev_action = action_index
         self.prev_reward = reward

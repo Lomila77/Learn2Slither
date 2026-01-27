@@ -78,8 +78,12 @@ class Snake(Object):
                 (CELL_SIZE, CELL_SIZE))
             self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
-        x, y = get_random_position(self.game_board, [WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD])
-        self.body: list[Vector2] = [Vector2(x, y)]
+        row, col = get_random_position(
+            self.game_board,
+            [WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD]
+        )
+        # Store positions as (x, y) = (col, row)
+        self.body: list[Vector2] = [Vector2(col, row)]
 
         x_axis, y_axis = self.watch()
         if brain is None:
@@ -98,10 +102,11 @@ class Snake(Object):
             last_pos = self.body[-1]
             for action in self.brain.actions:
                 new_place = last_pos + action
+                # Board is indexed as board[row][col] = board[y][x]
                 if (
-                    0 <= new_place.x < self.game_board.shape[0] and
-                    0 <= new_place.y < self.game_board.shape[1] and
-                    self.game_board[int(new_place.x)][int(new_place.y)] == EMPTY_CASE and
+                    0 <= new_place.x < self.game_board.shape[1] and
+                    0 <= new_place.y < self.game_board.shape[0] and
+                    self.game_board[int(new_place.y)][int(new_place.x)] == EMPTY_CASE and
                     new_place not in self.body
                 ):
                     self.body.append(new_place)
@@ -113,7 +118,9 @@ class Snake(Object):
 
         for i, snake_piece in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
-            self.game_board[int(snake_piece.x)][int(snake_piece.y)] = id
+            # board[row][col] = board[y][x]
+            self.game_board[int(snake_piece.y)][int(snake_piece.x)] = id
+        self.growth_effect = -1
 
     def update_head_graphics(self):
         body_direction = self.body[1] - self.body[0]
@@ -196,21 +203,29 @@ class Snake(Object):
         self, action: Vector2, growth_effect: int = -1
     ):
         self.direction = action
+        # Clear current snake positions
         for pos in self.body:
-            self.game_board[int(pos.x)][int(pos.y)] = EMPTY_CASE
+            self.game_board[int(pos.y)][int(pos.x)] = EMPTY_CASE
         body_copy = (
-            self.body[:] if growth_effect == 0 else self.body[:growth_effect])
+            self.body[:] if self.growth_effect == 0 else self.body[
+                :self.growth_effect]
+        )
+        self.growth_effect = -1
         body_copy.insert(0, body_copy[0] + self.direction)
         self.body = body_copy[:]
-        if 0 <= self.get_head_position().x < len(self.game_board[0]) and \
-                0 <= self.get_head_position().y < len(self.game_board[1]):
+        head = self.get_head_position()
+        # Bounds with board[row][col] = board[y][x]
+        if (
+            0 <= head.x < self.game_board.shape[1] and
+            0 <= head.y < self.game_board.shape[0]
+        ):
             for i, pos in enumerate(self.body):
                 id = SNAKE_HEAD if i == 0 else SNAKE_BODY
-                self.game_board[int(pos.x)][int(pos.y)] = id
+                self.game_board[int(pos.y)][int(pos.x)] = id
 
     def eat(self, nutrient: int = 0):
         print(f"Snack {nutrient}")
-        self.move(self.direction, -1 + nutrient)
+        self.growth_effect += nutrient
         if self.interface:
             self.play_crunch_sound()
     
@@ -218,17 +233,23 @@ class Snake(Object):
         x_axis, y_axis = self.watch()
         board: np.ndarray = np.full(self.game_board.shape, 6)
         head = self.get_head_position()
-        board[int(head.x)] = x_axis
-        for index in range(len(board)):
-            board[index][int(head.y)] = y_axis[index]
+        # Horizontal line at y = head.y
+        board[int(head.y)] = x_axis
+        # Vertical line at x = head.x
+        for row in range(board.shape[0]):
+            board[row][int(head.x)] = y_axis[row]
         return board
 
     def watch(self):
         head: Vector2 = self.get_head_position()
-        x_axis: list[int] = self.game_board[int(head.x)]
-        y_axis: list[int] = []
-        for x in range(self.game_board.shape[0]):
-            y_axis.append(self.game_board[x][int(head.y)])
+        # board[row][col] => board[y][x]
+        # x_axis: horizontal line (vary x) at fixed y
+        x_axis: list[int] = list(self.game_board[int(head.y)])
+        # y_axis: vertical line (vary y) at fixed x
+        y_axis: list[int] = [
+            self.game_board[row][int(head.x)]
+            for row in range(self.game_board.shape[0])
+        ]
         return x_axis, y_axis
 
     def call_brain(self):

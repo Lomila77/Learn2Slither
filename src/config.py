@@ -1,7 +1,7 @@
 import pygame
 
 LEARNING_RATE = 0.9
-EPOCHS = 10
+EPOCHS = 50000
 
 CELL_SIZE = 40
 FRAMERATE = 60

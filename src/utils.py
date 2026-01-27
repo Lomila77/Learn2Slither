@@ -38,13 +38,13 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     for i, row in enumerate(board):
         for j, pos in enumerate(row):
             if pos not in forbidden_ids:
+                # i = row (y), j = column (x)
                 valid_positions.append((i, j))
 
     if not valid_positions:
         raise ValueError("No place for object")
 
-    x, y = random.choice(valid_positions)
-    return x, y
+    return random.choice(valid_positions)
 
 
 def print_q_table(q_table: dict[tuple]):

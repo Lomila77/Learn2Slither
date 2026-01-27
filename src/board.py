@@ -53,8 +53,9 @@ class Board:
         if self.interface:
             pygame.mixer.pre_init(44100, -16, 2, 512)
             pygame.init()
+            # Screen size: width = nb_cols, height = nb_rows
             self.screen = pygame.display.set_mode(
-                Vector2(CELL_SIZE * shape[0], CELL_SIZE * shape[1]))
+                Vector2(CELL_SIZE * shape[1], CELL_SIZE * shape[0]))
             self.clock = pygame.time.Clock()
             self.framerate = FRAMERATE
             pygame.time.set_timer(SCREEN_UPDATE, SPEED)
@@ -62,11 +63,10 @@ class Board:
             self.game_font = pygame.font.Font(
                 'font/PoetsenOne-Regular.ttf', 25)
         self.filename: str = save_name
+        # board[row][col] = board[y][x]
         self.board = np.zeros((shape[0], shape[1]))
         self.walls: list = self.create_wall()
         self.snake: Snake = self.create_snake(load_checkpoint=load_checkpoint)
-        print("NEW TOUR")
-        print(f"SNAKE POS: {self.snake.get_head_position()}")
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         print("Starting the game")
@@ -142,25 +142,26 @@ class Board:
                     pygame.draw.rect(self.screen, grass_color, grass_rect)
 
     def draw_wall(self):
-        len_board = len(self.board) - 1
-        len_row = len(self.board[0]) - 1
+        # height = nb_rows, width = nb_cols
+        height = self.board.shape[0] - 1
+        width = self.board.shape[1] - 1
         for wall in self.walls:
             path = ''
             if wall.y == 0 and wall.x == 0:
                 path = 'graphics/coin_haut_gauche.png'
-            elif wall.y == 0 and wall.x == len_board:
+            elif wall.y == 0 and wall.x == width:
                 path = 'graphics/coin_haut_droit.png'
-            elif wall.y == len_row and wall.x == 0:
+            elif wall.y == height and wall.x == 0:
                 path = 'graphics/coin_bas_gauche.png'
-            elif wall.y == len_row and wall.x == len_board:
+            elif wall.y == height and wall.x == width:
                 path = 'graphics/coin_bas_droit.png'
             elif wall.x == 0:
                 path = 'graphics/bai_gauche.png'
-            elif wall.x == len_board:
+            elif wall.x == width:
                 path = 'graphics/bai_droit.png'
             elif wall.y == 0:
                 path = 'graphics/bai_haut.png'
-            elif wall.y == len_row:
+            elif wall.y == height:
                 path = 'graphics/bai_bas.png'
             else:
                 continue
@@ -179,22 +180,24 @@ class Board:
         score_text = f"{len(self.snake.body) - 3}"
         score_surface = self.game_font.render(
             score_text, True, (56, 74, 12))
-        score_x = int(CELL_SIZE * self.board.shape[0] - 60)
-        score_y = int(CELL_SIZE * self.board.shape[1] - 40)
+        # width = nb_cols, height = nb_rows
+        score_x = int(CELL_SIZE * self.board.shape[1] - 60)
+        score_y = int(CELL_SIZE * self.board.shape[0] - 40)
         score_rect = score_surface.get_rect(center=(score_x, score_y))
         self.screen.blit(score_surface, score_rect)
 
     def create_wall(self):
         print("Build walls (water)")
         walls: list[Vector2] = []
-        for i, row in enumerate(self.board):
-            for j, _ in enumerate(self.board):
-                if j == 0 or j == len(row) - 1:
-                    self.board[i][j] = 5
-                    walls.append(Vector2(i, j))
-                if i == 0 or i == len(self.board) - 1:
-                    self.board[i][j] = 5
-                    walls.append(Vector2(i, j))
+        for row_idx, row in enumerate(self.board):
+            for col_idx, _ in enumerate(row):
+                # Borders: board[row][col] = board[y][x]
+                if col_idx == 0 or col_idx == len(row) - 1:
+                    self.board[row_idx][col_idx] = 5
+                    walls.append(Vector2(col_idx, row_idx))
+                if row_idx == 0 or row_idx == len(self.board) - 1:
+                    self.board[row_idx][col_idx] = 5
+                    walls.append(Vector2(col_idx, row_idx))
         return walls
 
     def create_green_apple(self, nb: int = 2):
@@ -221,15 +224,12 @@ class Board:
         self.walls = self.create_wall()
         brain = self.snake.brain
         self.snake = self.create_snake(brain=brain)
-        print("NEW TOUR")
-        print(f"SNAKE POS: {self.snake.get_head_position()}")
-        print(f"SNAKE: {self.snake.get_position()}")
         self.green_apple = self.create_green_apple()
         self.red_apple = self.create_red_apple()
         self.snake.brain.reset()
 
     def display(self):
-        #os.system('clear')
+        os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
@@ -287,9 +287,10 @@ class Board:
             if pos.x == wall.x and pos.y == wall.y:
                 print("Snake is gone, good bye snaky snakie")
                 return True
+        # Out of bounds with board[row][col] = board[y][x]
         if not (
-            0 < pos.x < self.board.shape[0]) or not (
-            0 < pos.y < self.board.shape[1]
+            0 < pos.x < self.board.shape[1]) or not (
+            0 < pos.y < self.board.shape[0]
         ):
             return True
         return False
