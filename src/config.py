@@ -1,13 +1,13 @@
 import pygame
 
 LEARNING_RATE = 0.9
-EPOCHS = 500
+EPOCHS = 10
 
 CELL_SIZE = 40
 FRAMERATE = 60
 
 SCREEN_UPDATE = pygame.USEREVENT
-SPEED = 150
+SPEED = 1#150
 
-SAVE_FILE_AS="./weights/1_epochs_10.pck"
-LOAD_WEIGHTS="./weights/1_epochs_10.pck"
+SAVE_AS_NAME = "first_try"
+LOAD_WEIGHTS = "./weights/10*10_epochs_5000_rew_aug_fix_rew.pck"

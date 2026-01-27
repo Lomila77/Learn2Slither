@@ -3,8 +3,8 @@ import numpy as np
 from pygame.math import Vector2
 from src.config import CELL_SIZE
 from src.brain import Brain
-from src.object import Object
-from src.utils import get_random_position
+from src.object import Object, RedApple
+from src.utils import GREEN_APPLE, RED_APPLE, get_random_position
 from src.utils import (
     UP,
     DOWN,
@@ -22,6 +22,7 @@ class Snake(Object):
     def __init__(
         self,
         board: list[list[int]],
+        brain: Brain | None = None,
         interface: bool = True,
         load_checkpoint: bool = False
     ) -> None:
@@ -77,18 +78,21 @@ class Snake(Object):
                 (CELL_SIZE, CELL_SIZE))
             self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
-        x, y = get_random_position(self.game_board, [WALL])
+        x, y = get_random_position(self.game_board, [WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD])
         self.body: list[Vector2] = [Vector2(x, y)]
 
         x_axis, y_axis = self.watch()
-        self.brain = Brain(
-            self.game_board.shape,
-            self.get_head_position(),
-            x_axis,
-            y_axis,
-            self,
-            load_checkpoint
-        )
+        if brain is None:
+            self.brain = Brain(
+                self.game_board.shape,
+                self.get_head_position(),
+                x_axis,
+                y_axis,
+                self,
+                load_checkpoint
+            )
+        else:
+            self.brain = brain
 
         for _ in range(2):
             last_pos = self.body[-1]
@@ -215,7 +219,7 @@ class Snake(Object):
         board: np.ndarray = np.full(self.game_board.shape, 6)
         head = self.get_head_position()
         board[int(head.x)] = x_axis
-        for index, row in enumerate(board):
+        for index in range(len(board)):
             board[index][int(head.y)] = y_axis[index]
         return board
 
@@ -223,7 +227,7 @@ class Snake(Object):
         head: Vector2 = self.get_head_position()
         x_axis: list[int] = self.game_board[int(head.x)]
         y_axis: list[int] = []
-        for x in range(self.game_board.shape[1]):
+        for x in range(self.game_board.shape[0]):
             y_axis.append(self.game_board[x][int(head.y)])
         return x_axis, y_axis
 

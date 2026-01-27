@@ -2,12 +2,14 @@ import os
 import pygame, time, sys
 from pygame.math import Vector2
 import numpy as np
+from src.brain import Brain
 from src.config import (
     CELL_SIZE,
     FRAMERATE,
     SCREEN_UPDATE,
     SPEED,
-    EPOCHS
+    EPOCHS,
+    SAVE_AS_NAME
 )
 from src.utils import UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON
 from src.object import GreenApple, RedApple
@@ -20,7 +22,8 @@ class Board:
         shape: list[int],
         training_mode: bool = False,
         ai_mode: bool = False,
-        load_checkpoint: bool = False
+        load_checkpoint: bool = False,
+        save_name: str = SAVE_AS_NAME
     ) -> None:
         if len(shape) != 2:
             raise ValueError("Need to be a 2d map")
@@ -36,8 +39,8 @@ class Board:
             self.interface = False
             self.training_mode = True
             self.ai_player = True
+            self.total_epochs = EPOCHS
             self.epochs = EPOCHS
-            
         elif ai_mode:
             self.interface = True
             self.training_mode = False
@@ -58,28 +61,31 @@ class Board:
             self.background_color = (175, 215, 70)
             self.game_font = pygame.font.Font(
                 'font/PoetsenOne-Regular.ttf', 25)
-
+        self.filename: str = save_name
         self.board = np.zeros((shape[0], shape[1]))
-        self.snake: Snake = self.create_snake(load_checkpoint)
+        self.walls: list = self.create_wall()
+        self.snake: Snake = self.create_snake(load_checkpoint=load_checkpoint)
+        print("NEW TOUR")
+        print(f"SNAKE POS: {self.snake.get_head_position()}")
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
-        self.walls: list = self.create_wall()
         print("Starting the game")
 
     def play(self):
         try:
-            self.display()
             while True:
+                self.display()
+                if self.is_finished():
+                    self.game_over()
+                self.check_collectible()
                 if self.training_mode:
                     action = self.snake.call_brain()
                     self.snake.move(action)
-                    self.display()
-                    if self.is_finished():
-                        self.game_over()
+                    #self.display()
                     time.sleep(SPEED / 1000)
                 else:
                     for event in pygame.event.get():
-                        if event.type == pygame.QUIT or self.is_finished():
+                        if event.type == pygame.QUIT:
                             self.game_over()
                         if event.type == SCREEN_UPDATE:
                             self.snake.move(self.snake.direction)
@@ -101,16 +107,14 @@ class Board:
                         elif self.ai_player:
                             action = self.snake.call_brain()
                             self.snake.move(action)
-
                     self.screen.fill(self.background_color)
                     self.draw_grass()
                     self.draw_wall()
                     self.draw_object()
                     self.draw_score()
                     pygame.display.update()
-                    self.display()
+                    #self.display()
                     self.clock.tick(self.framerate)
-                self.check_collectible()
         except KeyboardInterrupt:
             self.game_over()
 
@@ -125,7 +129,7 @@ class Board:
         grass_color = (167, 209, 61)
         for row in range(int(self.board.shape[0])):
             color = False
-            if row % 2 == 0: 
+            if row % 2 == 0:
                 color = True
             for col in range(int(self.board.shape[1])):
                 if col % 2 == 0 and color is True:
@@ -207,46 +211,68 @@ class Board:
         print("Create green apple")
         return apples
 
-    def create_snake(self, load_checkpoint: bool = False):
+    def create_snake(self, brain: Brain = None, load_checkpoint: bool = False):
         print("Create lovely snake")
-        return Snake(self.board, self.interface, load_checkpoint)
+        return Snake(self.board, brain, self.interface, load_checkpoint)
 
     def reset(self):
         self.board = np.zeros_like(self.board)
         print("Game reset")
         self.walls = self.create_wall()
-        self.snake = self.create_snake()
+        brain = self.snake.brain
+        self.snake = self.create_snake(brain=brain)
+        print("NEW TOUR")
+        print(f"SNAKE POS: {self.snake.get_head_position()}")
+        print(f"SNAKE: {self.snake.get_position()}")
         self.green_apple = self.create_green_apple()
         self.red_apple = self.create_red_apple()
-        print(f"SNAKE POS: {self.snake.get_head_position()}")
         self.snake.brain.reset()
 
     def display(self):
-        os.system('clear')
+        #os.system('clear')
         separator = '    |    '
-        symbols_len = len(SYMBOLS[0])
+        symbols_len = 2
         width_board = len(self.board[0])
         snake_vision = self.snake.vision()
-
-        print(f"SNAKE POS: {self.snake.get_head_position()}")
+        underline = "=" * width_board * symbols_len
+        print(underline + "=" * len(separator) + underline)
+        print(underline + "=" * len(separator) + underline)
         print("BOARD".center(
             width_board * symbols_len) + separator + "SNAKE VISION".center(
                 width_board * symbols_len))
-        underline = "=" * width_board * symbols_len
         print(underline + separator + underline)
 
-        board_transposed = self.board.T
-        vision_transposed = snake_vision.T
+        #board_transposed = self.board.T
+        #vision_transposed = snake_vision.T
+
+        board_transposed = self.board
+        vision_transposed = snake_vision
         for i in range(len(board_transposed)):
             line1 = ''.join(
                 SYMBOLS.get(cell, '?') for cell in board_transposed[i])
             line2 = ''.join(
                 SYMBOLS.get(cell, '?') for cell in vision_transposed[i])
             print(line1 + separator + line2)
+        print(underline + "=" * len(separator) + underline)
         if self.training_mode:
             prev_action = DIRECTIONS_ICON[self.snake.brain.prev_action]
-            print(f"Previous action: {prev_action}")
-            print(f"Reward: {self.snake.brain.prev_reward}")
+            print(f"EPOCHS: {self.epochs}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print(f"SNAKE POS: {self.snake.get_head_position()}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print(f"SNAKE LENGHT: {self.snake.get_length()}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print(underline + "=" * len(separator) + underline)
+            print("BRAIN".center(
+                width_board * symbols_len) + separator + "Q_TABLE".center(
+                    width_board * symbols_len))
+            print(underline + separator + underline)
+            print(f"Action: {prev_action}".center(
+                width_board * symbols_len + 1
+            ) + separator + f"Length: {self.snake.brain.get_length_q_table()}".center(
+                    width_board * symbols_len))
+            print(f"Reward: {self.snake.brain.prev_reward}".center(
+                width_board * symbols_len) + separator)
 
     def is_finished(self):
         if self.snake.get_length() < 3:
@@ -261,6 +287,11 @@ class Board:
             if pos.x == wall.x and pos.y == wall.y:
                 print("Snake is gone, good bye snaky snakie")
                 return True
+        if not (
+            0 < pos.x < self.board.shape[0]) or not (
+            0 < pos.y < self.board.shape[1]
+        ):
+            return True
         return False
 
     def game_over(self):
@@ -274,7 +305,12 @@ class Board:
             if self.epochs > 0:
                 self.reset()
             else:
-                self.snake.brain.save_q_table()
+                epochs = self.total_epochs if self.epochs == 0 else self.epochs
+                self.snake.brain.save_q_table(
+                    shape=self.board.shape,
+                    epochs=epochs,
+                    name=self.filename
+                )
                 sys.exit()
 
     def check_collectible(self):
@@ -289,5 +325,6 @@ class Board:
 
 
 if __name__ == "__main__":
-    env = Board([10, 10], training_mode=True)
+    env = Board(
+        [10, 10], training_mode=True, ai_mode=False, load_checkpoint=False)
     env.play()

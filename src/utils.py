@@ -30,10 +30,6 @@ SYMBOLS = {
     4: '🍎',
     5: '🌊',
     6: '  ',
-    7: '⬆️',
-    8: '⬇️',
-    9: '⬅️',
-    10: '➡️',
 }
 
 
@@ -51,7 +47,39 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     return x, y
 
 
+def print_q_table(q_table: dict[tuple]):
+    def format_state(state):
+        # state = ((d_top, obj_top), (d_bot, obj_bot), (d_left, obj_left), (d_right, obj_right))
+        print(f"STATE={state}")
+        labels = [
+            DIRECTIONS_ICON[0],
+            DIRECTIONS_ICON[1],
+            DIRECTIONS_ICON[2],
+            DIRECTIONS_ICON[3]
+        ]
+        parts = []
+        for (dist, obj), label in zip(state, labels):
+            sym = SYMBOLS.get(obj, "?")
+            parts.append(f"{label}:{dist:2d} - {sym}")
+        return " | ".join(parts)
+
+    header_state = "STATE".ljust(40)
+    header_actions = " ".join(f"{name:^10}" for name in [
+        DIRECTIONS_ICON[0],
+        DIRECTIONS_ICON[1],
+        DIRECTIONS_ICON[2],
+        DIRECTIONS_ICON[3]
+    ])
+    print(header_state + " | " + header_actions)
+    print("-" * (len(header_state) + 3 + len(header_actions)))
+
+    for state, values in q_table.items():
+        state_str = format_state(state)[:40].ljust(40)
+        actions_str = " ".join(f"{v:10.2f}" for v in values)
+        print(f"{state_str} | {actions_str}")
+
+
 if __name__ == "__main__":
     with open(LOAD_WEIGHTS, "rb") as f:
         q_table = pickle.load(f)
-    print(f"Q_TABLE: {q_table}")
+    print_q_table(q_table)
