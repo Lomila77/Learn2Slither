@@ -1,5 +1,7 @@
 import os
-import pygame, time, sys
+import pygame
+import time
+import sys
 from pygame.math import Vector2
 import numpy as np
 from src.brain import Brain
@@ -9,22 +11,42 @@ from src.config import (
     SCREEN_UPDATE,
     SPEED,
     EPOCHS,
-    SAVE_AS_NAME
+    TRAINING_MODE,
+    AI_MODE,
+    LOAD_CHECKPOINT,
+    MAP_SHAPE
 )
-from src.utils import UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON
+from src.utils import (
+    UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON,
+    draw_step_graph, draw_object_graph,
+    get_name, save_data, load_data
+)
 from src.object import GreenApple, RedApple
 from src.snake import Snake
 
 
 class Board:
-    def __init__(
-        self,
-        shape: list[int],
-        training_mode: bool = False,
-        ai_mode: bool = False,
-        load_checkpoint: bool = False,
-        save_name: str = SAVE_AS_NAME
-    ) -> None:
+    def __init__(self) -> None:
+        shape = MAP_SHAPE
+        if TRAINING_MODE:
+            self.interface = False
+            self.training_mode = True
+            self.ai_player = True
+            if LOAD_CHECKPOINT:
+                data = load_data()
+                shape = data["shape"]
+                self.previous_epochs = data["epochs"]
+            self.total_epochs = EPOCHS
+            self.epochs = EPOCHS
+        elif AI_MODE:
+            self.interface = True
+            self.training_mode = False
+            self.ai_player = True
+        else:
+            self.interface = True
+            self.training_mode = False
+            self.ai_player = False
+
         if len(shape) != 2:
             raise ValueError("Need to be a 2d map")
         if not isinstance(
@@ -35,20 +57,6 @@ class Board:
             raise ValueError("Shape must be 2d int array")
         if shape[0] < 10 and shape[1] < 10:
             raise ValueError("Too small, higher than 10 pls")
-        if training_mode:
-            self.interface = False
-            self.training_mode = True
-            self.ai_player = True
-            self.total_epochs = EPOCHS
-            self.epochs = EPOCHS
-        elif ai_mode:
-            self.interface = True
-            self.training_mode = False
-            self.ai_player = True
-        else:
-            self.interface = True
-            self.training_mode = False
-            self.ai_player = False
 
         if self.interface:
             pygame.mixer.pre_init(44100, -16, 2, 512)
@@ -62,13 +70,19 @@ class Board:
             self.background_color = (175, 215, 70)
             self.game_font = pygame.font.Font(
                 'font/PoetsenOne-Regular.ttf', 25)
-        self.filename: str = save_name
+        self.max_lengths: list[int] = []
+        self.movements: list[int] = []
+        self.green_apples_ate: list[int] = []
+        self.red_apples_ate: list[int] = []
         # board[row][col] = board[y][x]
         self.board = np.zeros((shape[0], shape[1]))
         self.walls: list = self.create_wall()
-        self.snake: Snake = self.create_snake(load_checkpoint=load_checkpoint)
+        self.snake: Snake = self.create_snake(load_checkpoint=LOAD_CHECKPOINT)
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
+        self.green_apple_counter: int = 0
+        self.red_apple_counter: int = 0
+        self.movement_counter: int = 0
         print("Starting the game")
 
     def play(self):
@@ -81,7 +95,6 @@ class Board:
                 if self.training_mode:
                     action = self.snake.call_brain()
                     self.snake.move(action)
-                    #self.display()
                     time.sleep(SPEED / 1000)
                 else:
                     for event in pygame.event.get():
@@ -113,8 +126,8 @@ class Board:
                     self.draw_object()
                     self.draw_score()
                     pygame.display.update()
-                    #self.display()
                     self.clock.tick(self.framerate)
+                self.movement_counter += 1
         except KeyboardInterrupt:
             self.game_over()
 
@@ -241,10 +254,6 @@ class Board:
             width_board * symbols_len) + separator + "SNAKE VISION".center(
                 width_board * symbols_len))
         print(underline + separator + underline)
-
-        #board_transposed = self.board.T
-        #vision_transposed = snake_vision.T
-
         board_transposed = self.board
         vision_transposed = snake_vision
         for i in range(len(board_transposed)):
@@ -303,14 +312,33 @@ class Board:
             sys.exit()
         elif self.training_mode:
             self.epochs -= 1
+            self.max_lengths.append(self.snake.max_length)
+            self.green_apples_ate.append(self.green_apple_counter)
+            self.red_apples_ate.append(self.red_apple_counter)
+            self.movements.append(self.movement_counter)
+            self.green_apple_counter = 0
+            self.red_apple_counter = 0
+            self.movement_counter = 0
             if self.epochs > 0:
                 self.reset()
             else:
                 epochs = self.total_epochs if self.epochs == 0 else self.epochs
-                self.snake.brain.save_q_table(
-                    shape=self.board.shape,
-                    epochs=epochs,
-                    name=self.filename
+                if LOAD_CHECKPOINT:
+                    epochs += self.previous_epochs
+                print(f"TOTAL EPOCH: {epochs}")
+                print(f"MOVEMENTS: {self.movements}")
+                save_data(epochs, self.snake.brain.q_table)
+                draw_step_graph(
+                    epochs=self.total_epochs,
+                    nb_steps=self.movements,
+                    name=get_name("step_graph")
+                )
+                draw_object_graph(
+                    epochs=self.total_epochs,
+                    nb_green_apples_ate=self.green_apples_ate,
+                    nb_red_apples_ate=self.red_apples_ate,
+                    snake_sizes=self.max_lengths,
+                    name=get_name("object_graph")
                 )
                 sys.exit()
 
@@ -318,14 +346,15 @@ class Board:
         for apple in self.green_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
+                self.green_apple_counter += 1
                 print("Snake ate yummy green apple ! Happy snake !")
         for apple in self.red_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
+                self.red_apple_counter += 1
                 print("Snake ate an horrible red apple... Poor snake...")
 
 
 if __name__ == "__main__":
-    env = Board(
-        [10, 10], training_mode=True, ai_mode=False, load_checkpoint=False)
+    env = Board()
     env.play()

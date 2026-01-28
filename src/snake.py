@@ -121,6 +121,7 @@ class Snake(Object):
             # board[row][col] = board[y][x]
             self.game_board[int(snake_piece.y)][int(snake_piece.x)] = id
         self.growth_effect = -1
+        self.max_length = self.get_length()
 
     def update_head_graphics(self):
         body_direction = self.body[1] - self.body[0]
@@ -199,9 +200,12 @@ class Snake(Object):
     def get_length(self):
         return len(self.body)
 
-    def move(
-        self, action: Vector2, growth_effect: int = -1
-    ):
+    def update_max_length(self):
+        length = self.get_length()
+        if length > self.max_length:
+            self.max_lenght = length
+
+    def move(self, action: Vector2):
         self.direction = action
         # Clear current snake positions
         for pos in self.body:
@@ -222,13 +226,14 @@ class Snake(Object):
             for i, pos in enumerate(self.body):
                 id = SNAKE_HEAD if i == 0 else SNAKE_BODY
                 self.game_board[int(pos.y)][int(pos.x)] = id
+        self.update_max_length()
 
     def eat(self, nutrient: int = 0):
         print(f"Snack {nutrient}")
         self.growth_effect += nutrient
         if self.interface:
             self.play_crunch_sound()
-    
+
     def vision(self):
         x_axis, y_axis = self.watch()
         board: np.ndarray = np.full(self.game_board.shape, 6)
@@ -257,4 +262,3 @@ class Snake(Object):
         action = self.brain.call_brain(
             x_axis, y_axis, self.get_head_position())
         return action
-

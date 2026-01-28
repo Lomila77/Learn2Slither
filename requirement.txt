@@ -2,3 +2,5 @@ numpy
 pytest
 flake8
 pygame
+seaborn
+pandas
