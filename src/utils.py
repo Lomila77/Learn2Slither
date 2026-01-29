@@ -61,9 +61,9 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     return random.choice(valid_positions)
 
 
-def get_name(add_to_name: str):
+def get_name(epochs, add_to_name: str):
     shape = f"{MAP_SHAPE[0]}*{MAP_SHAPE[1]}_"
-    epoch = f"epochs_{EPOCHS}_"
+    epoch = f"epochs_{epochs}_"
     filename = f"{FILENAME}_"
     return DIRECTORY + shape + epoch + filename + add_to_name
 
@@ -77,7 +77,7 @@ def smooth(values: list[int], window=200):
 def draw_step_graph(epochs, nb_steps, name):
     df = pd.DataFrame({
         "epoch": range(epochs),
-        "steps": smooth(nb_steps),
+        "steps": smooth(nb_steps, 1000),
     })
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -88,8 +88,8 @@ def draw_step_graph(epochs, nb_steps, name):
 
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Pas")
-    ax.xaxis.set_major_locator(MultipleLocator(10000))  # tick tous les 1000
-    ax.xaxis.set_minor_locator(MultipleLocator(1000))   # graduations secondaires tous les 200
+    ax.xaxis.set_major_locator(MultipleLocator(10000))
+    ax.xaxis.set_minor_locator(MultipleLocator(1000))
 
     ax.set_xlim(0, epochs)
     y_max = df[["steps"]].max().max()
@@ -106,9 +106,9 @@ def draw_object_graph(
 ):
     df = pd.DataFrame({
         "epoch": range(epochs),
-        "green_apple": smooth(nb_green_apples_ate),
-        "red_apple": smooth(nb_red_apples_ate),
-        "snake_size": smooth(snake_sizes),
+        "green_apple": smooth(nb_green_apples_ate, 1000),
+        "red_apple": smooth(nb_red_apples_ate, 1000),
+        "snake_size": smooth(snake_sizes, 1000),
     })
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -127,8 +127,8 @@ def draw_object_graph(
 
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Valeur")
-    ax.xaxis.set_major_locator(MultipleLocator(10000))  # tick tous les 1000
-    ax.xaxis.set_minor_locator(MultipleLocator(1000))   # graduations secondaires tous les 200
+    ax.xaxis.set_major_locator(MultipleLocator(10000))
+    ax.xaxis.set_minor_locator(MultipleLocator(1000))
 
     ax.set_xlim(0, epochs)
     y_max = df[["green_apple", "red_apple", "snake_size"]].max().max()
@@ -140,7 +140,7 @@ def draw_object_graph(
     plt.close(fig)
 
 
-def `z`():
+def load_q_table():
     with open(LOAD_WEIGHTS, "rb") as f:
         q_table = pickle.load(f)
     return q_table
@@ -153,9 +153,9 @@ def save_data(epochs: int, q_table):
         "q_table_len": len(q_table),
         "learning_rate": LEARNING_RATE,
     }
-    with open(get_name("weights") + ".pck", "wb") as f:
+    with open(get_name(epochs, "weights") + ".pck", "wb") as f:
         pickle.dump(q_table, f)
-    with open(get_name("config") + ".json", "w") as f:
+    with open(get_name(epochs, "config") + ".json", "w") as f:
         json.dump(data, f)
 
 
@@ -203,11 +203,17 @@ def print_q_table(q_table: dict[tuple]):
     print("-" * (len(header_state) + 3 + len(header_actions)))
 
     width = 10
+    new_states = 0
     for state, values in q_table.items():
-        state_str = format_state(state, width)[:62].ljust(62)
-        actions_str = format_action(values, width)[:62].ljust(62)
-        #actions_str = " | ".join(f"{float(v):.2f}" for v in values)
-        print(f"{state_str}\n{actions_str}\n\n")
+        if not all(v == 0 for v in values):
+            state_str = format_state(state, width)
+            actions_str = format_action(values, width)
+            # actions_str = " | ".join(f"{float(v):.2f}" for v in values)
+            print(f"{state_str}\n{actions_str}")
+            print("---------------------------------------------------------")
+        else:
+            new_states += 1
+    print(f"State unexplored: {new_states}")
 
 
 if __name__ == "__main__":

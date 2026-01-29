@@ -61,7 +61,6 @@ class Board:
         if self.interface:
             pygame.mixer.pre_init(44100, -16, 2, 512)
             pygame.init()
-            # Screen size: width = nb_cols, height = nb_rows
             self.screen = pygame.display.set_mode(
                 Vector2(CELL_SIZE * shape[1], CELL_SIZE * shape[0]))
             self.clock = pygame.time.Clock()
@@ -74,7 +73,6 @@ class Board:
         self.movements: list[int] = []
         self.green_apples_ate: list[int] = []
         self.red_apples_ate: list[int] = []
-        # board[row][col] = board[y][x]
         self.board = np.zeros((shape[0], shape[1]))
         self.walls: list = self.create_wall()
         self.snake: Snake = self.create_snake(load_checkpoint=LOAD_CHECKPOINT)
@@ -82,6 +80,8 @@ class Board:
         self.red_apple: list = self.create_red_apple()
         self.green_apple_counter: int = 0
         self.red_apple_counter: int = 0
+        self.hit_wall_counter: int = 0
+        self.ate_himself_counter: int = 0
         self.movement_counter: int = 0
         print("Starting the game")
 
@@ -93,7 +93,9 @@ class Board:
                     self.game_over()
                 self.check_collectible()
                 if self.training_mode:
-                    action = self.snake.call_brain()
+                    terminal, action = self.snake.call_brain()
+                    if terminal:
+                        self.game_over()
                     self.snake.move(action)
                     time.sleep(SPEED / 1000)
                 else:
@@ -155,7 +157,6 @@ class Board:
                     pygame.draw.rect(self.screen, grass_color, grass_rect)
 
     def draw_wall(self):
-        # height = nb_rows, width = nb_cols
         height = self.board.shape[0] - 1
         width = self.board.shape[1] - 1
         for wall in self.walls:
@@ -193,7 +194,6 @@ class Board:
         score_text = f"{len(self.snake.body) - 3}"
         score_surface = self.game_font.render(
             score_text, True, (56, 74, 12))
-        # width = nb_cols, height = nb_rows
         score_x = int(CELL_SIZE * self.board.shape[1] - 60)
         score_y = int(CELL_SIZE * self.board.shape[0] - 40)
         score_rect = score_surface.get_rect(center=(score_x, score_y))
@@ -204,7 +204,6 @@ class Board:
         walls: list[Vector2] = []
         for row_idx, row in enumerate(self.board):
             for col_idx, _ in enumerate(row):
-                # Borders: board[row][col] = board[y][x]
                 if col_idx == 0 or col_idx == len(row) - 1:
                     self.board[row_idx][col_idx] = 5
                     walls.append(Vector2(col_idx, row_idx))
@@ -267,9 +266,22 @@ class Board:
             prev_action = DIRECTIONS_ICON[self.snake.brain.prev_action]
             print(f"EPOCHS: {self.epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))
-            print(f"SNAKE POS: {self.snake.get_head_position()}".center(
+            if len(self.max_lengths) != 0:
+                print(f"MAX LENGTH REACH: {max(self.max_lengths)}".center(
+                    width_board * symbols_len * 2 + len(separator)))
+            print(f"GREEN APPLE ATE: {sum(self.green_apples_ate)}".center(
                 width_board * symbols_len * 2 + len(separator)))
-            print(f"SNAKE LENGHT: {self.snake.get_length()}".center(
+            print(f"RED APPLE ATE: {sum(self.red_apples_ate)}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print(f"WALL HITTED: {self.hit_wall_counter}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print(f"ATE HIMSELF: {self.ate_himself_counter}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            if LOAD_CHECKPOINT:
+                epochs = self.total_epochs + self.previous_epochs
+            else:
+                epochs = self.total_epochs
+            print(f"TOTAL EPOCHS: {epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))
             print(underline + "=" * len(separator) + underline)
             print("BRAIN".center(
@@ -289,12 +301,14 @@ class Board:
             return True
         if self.snake.get_head_position() in self.snake.get_body_position():
             self.snake.body.pop(0)
+            self.ate_himself_counter += 1
             print("Snake ate himself !!! Feed your snake !")
             return True
         pos = self.snake.get_head_position()
         for wall in self.walls:
             if pos.x == wall.x and pos.y == wall.y:
                 print("Snake is gone, good bye snaky snakie")
+                self.hit_wall_counter += 1
                 return True
         # Out of bounds with board[row][col] = board[y][x]
         if not (
@@ -311,6 +325,7 @@ class Board:
             pygame.quit()
             sys.exit()
         elif self.training_mode:
+            self.snake.call_brain()
             self.epochs -= 1
             self.max_lengths.append(self.snake.max_length)
             self.green_apples_ate.append(self.green_apple_counter)
@@ -326,19 +341,19 @@ class Board:
                 if LOAD_CHECKPOINT:
                     epochs += self.previous_epochs
                 print(f"TOTAL EPOCH: {epochs}")
-                print(f"MOVEMENTS: {self.movements}")
+
                 save_data(epochs, self.snake.brain.q_table)
                 draw_step_graph(
                     epochs=self.total_epochs,
                     nb_steps=self.movements,
-                    name=get_name("step_graph")
+                    name=get_name(epochs, "step_graph")
                 )
                 draw_object_graph(
                     epochs=self.total_epochs,
                     nb_green_apples_ate=self.green_apples_ate,
                     nb_red_apples_ate=self.red_apples_ate,
                     snake_sizes=self.max_lengths,
-                    name=get_name("object_graph")
+                    name=get_name(epochs, "object_graph")
                 )
                 sys.exit()
 

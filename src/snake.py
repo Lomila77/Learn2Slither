@@ -203,7 +203,7 @@ class Snake(Object):
     def update_max_length(self):
         length = self.get_length()
         if length > self.max_length:
-            self.max_lenght = length
+            self.max_length = length
 
     def move(self, action: Vector2):
         self.direction = action

@@ -43,6 +43,7 @@ class Brain:
         self.prev_state: tuple = None
         self.prev_action: int = 0
         self.prev_reward: int = 0
+        self.prev_terminal: bool = False
 
     def get_length_q_table(self):
         return len(self.q_table)
@@ -51,6 +52,7 @@ class Brain:
         self.prev_state = None
         self.lr = LEARNING_RATE
         self.epsilon_greedy = 0.1
+        self.prev_terminal = False
 
     def get_reward(self, x_axis: list[int], y_axis: list[int], pos: Vector2, action: Vector2) -> int:
         if action.x != 0:
@@ -64,18 +66,25 @@ class Brain:
         elif id == GREEN_APPLE:
             return +15  # +10 ?
         elif id == SNAKE_BODY:
-            return -10
+            self.prev_terminal = True
+            return -11
         elif id == WALL:
+            self.prev_terminal = True
             return -10
 
     def q_function(
         self,
-        prev_state: float,
+        prev_q_sa: float,
         prev_reward: float,
-        state: float,
+        q_sa: float,
     ) -> float:
-        esperance = prev_state + self.lr * (
-            prev_reward + self.gamma * state - prev_state)
+        if self.prev_terminal:
+            esperance = prev_q_sa + self.lr * (
+                prev_reward - prev_q_sa)
+            
+        else:
+            esperance = prev_q_sa + self.lr * (
+                prev_reward + self.gamma * q_sa - prev_q_sa)
         self.lr = max(self.lr * 0.9999, 0.01)
         return esperance
 
@@ -93,14 +102,12 @@ class Brain:
             for i, obj in enumerate(array):
                 if obj != EMPTY_CASE:
                     return (i, obj)
-        # y_axis: vertical line (vary y) at fixed x
-        # x_axis: horizontal line (vary x) at fixed y
         axis = y_axis[:int(pos.y)]
         top = get_obj(axis[:: -1])
         bot = get_obj(y_axis[int(pos.y) + 1:])
         axis = x_axis[:int(pos.x)]
         left = get_obj(axis[:: -1])
-        right = get_obj(x_axis[int(pos.y) + 1:])
+        right = get_obj(x_axis[int(pos.x) + 1:])
         return (top, bot, left, right)
 
     def call_brain(
@@ -111,13 +118,16 @@ class Brain:
             self.q_table[state] = [0.0, 0.0, 0.0, 0.0]
         if self.prev_state is not None:
             self.q_table[self.prev_state][self.prev_action] = self.q_function(
-                self.prev_reward,
-                self.q_table[self.prev_state][self.prev_action],
-                max(self.q_table[state])
+                prev_q_sa=self.q_table[self.prev_state][self.prev_action],
+                prev_reward=self.prev_reward,
+                q_sa=max(self.q_table[state])
             )
-        action_index: int = self.take_action(state)
-        reward: int = self.get_reward(x_axis, y_axis, pos, self.actions[action_index])
-        self.prev_state = state
-        self.prev_action = action_index
-        self.prev_reward = reward
-        return self.actions[action_index]
+        if not self.prev_terminal:
+            action_index: int = self.take_action(state)
+            reward: int = self.get_reward(
+                x_axis, y_axis, pos, self.actions[action_index])
+            self.prev_state = state
+            self.prev_action = action_index
+            self.prev_reward = reward
+            return self.prev_terminal, self.actions[action_index]
+        return self.prev_terminal, None
