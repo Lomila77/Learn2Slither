@@ -1,3 +1,4 @@
+from ast import If
 import os
 import pygame
 import time
@@ -10,6 +11,7 @@ from src.config import (
     FRAMERATE,
     SCREEN_UPDATE,
     SPEED,
+    TRAINING_SPEED,
     EPOCHS,
     TRAINING_MODE,
     AI_MODE,
@@ -42,6 +44,7 @@ class Board:
             self.interface = True
             self.training_mode = False
             self.ai_player = True
+            LOAD_CHECKPOINT = True
         else:
             self.interface = True
             self.training_mode = False
@@ -83,7 +86,6 @@ class Board:
         self.hit_wall_counter: int = 0
         self.ate_himself_counter: int = 0
         self.movement_counter: int = 0
-        print("Starting the game")
 
     def play(self):
         try:
@@ -96,31 +98,35 @@ class Board:
                     terminal, action = self.snake.call_brain()
                     if terminal:
                         self.game_over()
+                        continue
                     self.snake.move(action)
-                    time.sleep(SPEED / 1000)
+                    time.sleep(TRAINING_SPEED / 1000)
                 else:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
+                            self.quit()
+                        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                             self.game_over()
-                        if event.type == SCREEN_UPDATE:
-                            self.snake.move(self.snake.direction)
-                        if event.type == pygame.KEYDOWN and not self.ai_player:
-                            if event.key == pygame.K_ESCAPE:
-                                self.game_over()
-                            if event.key == pygame.K_UP:
-                                if self.snake.direction.y != 1:
-                                    self.snake.move(UP)
-                            if event.key == pygame.K_DOWN:
-                                if self.snake.direction.y != -1:
-                                    self.snake.move(DOWN)
-                            if event.key == pygame.K_RIGHT:
-                                if self.snake.direction.x != -1:
-                                    self.snake.move(RIGHT)
-                            if event.key == pygame.K_LEFT:
-                                if self.snake.direction.x != 1:
-                                    self.snake.move(LEFT)
-                        elif self.ai_player:
-                            action = self.snake.call_brain()
+                        if not self.ai_player:
+                            if event.type == SCREEN_UPDATE:
+                                self.snake.move(self.snake.direction)
+                            if event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_ESCAPE:
+                                    self.game_over()
+                                if event.key == pygame.K_UP:
+                                    if self.snake.direction.y != 1:
+                                        self.snake.move(UP)
+                                if event.key == pygame.K_DOWN:
+                                    if self.snake.direction.y != -1:
+                                        self.snake.move(DOWN)
+                                if event.key == pygame.K_RIGHT:
+                                    if self.snake.direction.x != -1:
+                                        self.snake.move(RIGHT)
+                                if event.key == pygame.K_LEFT:
+                                    if self.snake.direction.x != 1:
+                                        self.snake.move(LEFT)
+                        else:
+                            _, action = self.snake.call_brain()
                             self.snake.move(action)
                     self.screen.fill(self.background_color)
                     self.draw_grass()
@@ -131,7 +137,7 @@ class Board:
                     self.clock.tick(self.framerate)
                 self.movement_counter += 1
         except KeyboardInterrupt:
-            self.game_over()
+            self.game_over(True)
 
     def draw_object(self):
         for apple in self.green_apple:
@@ -231,6 +237,7 @@ class Board:
         return Snake(self.board, brain, self.interface, load_checkpoint)
 
     def reset(self):
+        self.reset_training_counter()
         self.board = np.zeros_like(self.board)
         print("Game reset")
         self.walls = self.create_wall()
@@ -240,8 +247,17 @@ class Board:
         self.red_apple = self.create_red_apple()
         self.snake.brain.reset()
 
+    def reset_training_counter(self):
+        self.max_lengths.append(self.snake.max_length)
+        self.green_apples_ate.append(self.green_apple_counter)
+        self.red_apples_ate.append(self.red_apple_counter)
+        self.movements.append(self.movement_counter)
+        self.green_apple_counter = 0
+        self.red_apple_counter = 0
+        self.movement_counter = 0
+
     def display(self):
-        os.system('clear')
+        #os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
@@ -295,53 +311,61 @@ class Board:
             print(f"Reward: {self.snake.brain.prev_reward}".center(
                 width_board * symbols_len) + separator)
 
-    def is_finished(self):
-        if self.snake.get_length() < 3:
-            print("Snake too short...")
-            return True
-        if self.snake.get_head_position() in self.snake.get_body_position():
+    def is_eating_body(self, pos: Vector2) -> bool:
+        if pos in self.snake.get_body_position():
             self.snake.body.pop(0)
             self.ate_himself_counter += 1
             print("Snake ate himself !!! Feed your snake !")
             return True
-        pos = self.snake.get_head_position()
+        return False
+
+    def is_snake_too_short(self) -> bool:
+        if self.snake.get_length() < 3:
+            print("Snake too short...")
+            return True
+        return False
+
+    def is_hitting_wall(self, pos: Vector2) -> bool:
         for wall in self.walls:
             if pos.x == wall.x and pos.y == wall.y:
                 print("Snake is gone, good bye snaky snakie")
                 self.hit_wall_counter += 1
                 return True
-        # Out of bounds with board[row][col] = board[y][x]
-        if not (
-            0 < pos.x < self.board.shape[1]) or not (
-            0 < pos.y < self.board.shape[0]
-        ):
+        return False
+
+    def is_finished(self, pos: Vector2 = None):
+        if pos is None:
+            pos = self.snake.get_head_position()
+        if self.is_snake_too_short() or self.is_eating_body(
+                pos=pos) or self.is_hitting_wall(pos=pos):
             return True
         return False
 
-    def game_over(self):
+    def last_action(self):
+        _, action = self.snake.call_brain()
+        losing_pos = self.snake.get_head_position() + action
+        self.is_eating_body(pos=losing_pos)
+        self.is_hitting_wall(pos=losing_pos)
+
+    def quit(self):
+        pygame.quit()
+        sys.exit()
+
+    def game_over(self, finish: bool = False):
         print("\n=== GAME OVER ===")
-        print(f"Snake Length: {self.snake.get_length()}")
+        print(f"Length: {self.snake.get_length()}")
         if self.interface:
-            pygame.quit()
-            sys.exit()
+            self.quit()
         elif self.training_mode:
-            self.snake.call_brain()
+            self.last_action()
             self.epochs -= 1
-            self.max_lengths.append(self.snake.max_length)
-            self.green_apples_ate.append(self.green_apple_counter)
-            self.red_apples_ate.append(self.red_apple_counter)
-            self.movements.append(self.movement_counter)
-            self.green_apple_counter = 0
-            self.red_apple_counter = 0
-            self.movement_counter = 0
-            if self.epochs > 0:
+            if self.epochs > 0 and not finish:
                 self.reset()
             else:
+                self.reset_training_counter()
                 epochs = self.total_epochs if self.epochs == 0 else self.epochs
                 if LOAD_CHECKPOINT:
                     epochs += self.previous_epochs
-                print(f"TOTAL EPOCH: {epochs}")
-
                 save_data(epochs, self.snake.brain.q_table)
                 draw_step_graph(
                     epochs=self.total_epochs,

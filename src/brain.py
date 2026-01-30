@@ -2,7 +2,7 @@ from typing import Any
 import numpy as np
 from random import randint, uniform
 from pygame.math import Vector2
-from src.config import LEARNING_RATE
+from src.config import LEARNING_RATE, EPSILON_GREEDY
 from src.utils import (
     UP,
     DOWN,
@@ -39,7 +39,7 @@ class Brain:
             self.q_table = load_q_table()
         self.lr = LEARNING_RATE
         self.gamma = LEARNING_RATE - 0.01
-        self.epsilon_greedy: float = 0.1
+        self.epsilon_greedy: float = EPSILON_GREEDY
         self.prev_state: tuple = None
         self.prev_action: int = 0
         self.prev_reward: int = 0
@@ -54,23 +54,36 @@ class Brain:
         self.epsilon_greedy = 0.1
         self.prev_terminal = False
 
-    def get_reward(self, x_axis: list[int], y_axis: list[int], pos: Vector2, action: Vector2) -> int:
+    def get_reward(
+        self,
+        x_axis: list[int],
+        y_axis: list[int],
+        pos: list[Vector2],
+        action: Vector2
+    ) -> int:
+        head_pos = pos[0]
         if action.x != 0:
-            id = x_axis[int(pos.x + action.x)]
+            id = x_axis[int(head_pos.x + action.x)]
         if action.y != 0:
-            id = y_axis[int(pos.y + action.y)]
+            id = y_axis[int(head_pos.y + action.y)]
         if id == EMPTY_CASE or id == SNAKE_HEAD:
             return -1
         elif id == RED_APPLE:
-            return -5
+            return -8
         elif id == GREEN_APPLE:
             return +15  # +10 ?
         elif id == SNAKE_BODY:
+            # Si ce n'est pas le dernier element du corps
+            # Le dernier elements du corps bougera avec l'action
+            # if not head_pos + action == pos[-1]:
+            #     self.prev_terminal = True
+            #     return -11
             self.prev_terminal = True
-            return -11
+            return -10
         elif id == WALL:
             self.prev_terminal = True
             return -10
+        return -1
 
     def q_function(
         self,
@@ -111,9 +124,13 @@ class Brain:
         return (top, bot, left, right)
 
     def call_brain(
-        self, x_axis: list[int], y_axis: list[int], pos: Vector2
+        self,
+        x_axis: list[int],
+        y_axis: list[int],
+        pos: list[Vector2]
     ) -> Vector2:
-        state = self.get_state(x_axis, y_axis, pos)
+        head_pos = pos[0]
+        state = self.get_state(x_axis, y_axis, head_pos)
         if state not in self.q_table:
             self.q_table[state] = [0.0, 0.0, 0.0, 0.0]
         if self.prev_state is not None:
@@ -122,12 +139,10 @@ class Brain:
                 prev_reward=self.prev_reward,
                 q_sa=max(self.q_table[state])
             )
-        if not self.prev_terminal:
-            action_index: int = self.take_action(state)
-            reward: int = self.get_reward(
-                x_axis, y_axis, pos, self.actions[action_index])
-            self.prev_state = state
-            self.prev_action = action_index
-            self.prev_reward = reward
-            return self.prev_terminal, self.actions[action_index]
-        return self.prev_terminal, None
+        action_index: int = self.take_action(state)
+        reward: int = self.get_reward(
+            x_axis, y_axis, pos, self.actions[action_index])
+        self.prev_state = state
+        self.prev_action = action_index
+        self.prev_reward = reward
+        return self.prev_terminal, self.actions[action_index]

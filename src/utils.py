@@ -74,10 +74,11 @@ def smooth(values: list[int], window=200):
     ).mean().tolist()
 
 
-def draw_step_graph(epochs, nb_steps, name):
+def draw_step_graph(epochs: int, nb_steps: list[int], name: str):
+    length = min(epochs, len(nb_steps))
     df = pd.DataFrame({
-        "epoch": range(epochs),
-        "steps": smooth(nb_steps, 1000),
+        "epoch": range(length),
+        "steps": smooth(nb_steps[:length], 1000),
     })
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -102,13 +103,23 @@ def draw_step_graph(epochs, nb_steps, name):
 
 
 def draw_object_graph(
-    epochs, nb_green_apples_ate, nb_red_apples_ate, snake_sizes, name
+    epochs: int,
+    nb_green_apples_ate: list[int],
+    nb_red_apples_ate: list[int],
+    snake_sizes: list[int],
+    name: str
 ):
+    length = min(
+        epochs,
+        len(nb_green_apples_ate),
+        len(nb_red_apples_ate),
+        len(snake_sizes)
+    )
     df = pd.DataFrame({
-        "epoch": range(epochs),
-        "green_apple": smooth(nb_green_apples_ate, 1000),
-        "red_apple": smooth(nb_red_apples_ate, 1000),
-        "snake_size": smooth(snake_sizes, 1000),
+        "epoch": range(length),
+        "green_apple": smooth(nb_green_apples_ate[:length], 1000),
+        "red_apple": smooth(nb_red_apples_ate[:length], 1000),
+        "snake_size": smooth(snake_sizes[:length], 1000),
     })
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -167,7 +178,6 @@ def load_data():
 
 def print_q_table(q_table: dict[tuple]):
     def format_state(state, width):
-        # state = ((d_top, obj_top), (d_bot, obj_bot), (d_left, obj_left), (d_right, obj_right))
         labels = [
             DIRECTIONS_ICON[0],
             DIRECTIONS_ICON[1],
@@ -213,7 +223,7 @@ def print_q_table(q_table: dict[tuple]):
             print("---------------------------------------------------------")
         else:
             new_states += 1
-    print(f"State unexplored: {new_states}")
+    print(f"State unexplored: {new_states} / {len(q_table)}")
 
 
 if __name__ == "__main__":

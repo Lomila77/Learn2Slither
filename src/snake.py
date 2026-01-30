@@ -260,5 +260,5 @@ class Snake(Object):
     def call_brain(self):
         x_axis, y_axis = self.watch()
         action = self.brain.call_brain(
-            x_axis, y_axis, self.get_head_position())
+            x_axis, y_axis, self.get_position())
         return action
