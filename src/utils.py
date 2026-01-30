@@ -11,10 +11,11 @@ from src.config import (
     LEARNING_RATE,
     LOAD_WEIGHTS,
     MAP_SHAPE,
-    EPOCHS,
     FILENAME,
     DIRECTORY,
-    LOAD_DATA
+    LOAD_DATA,
+    EPSILON_GREEDY,
+    FORCE_EXPLORATION
 )
 
 UP = Vector2(0, -1)
@@ -163,6 +164,8 @@ def save_data(epochs: int, q_table):
         "epochs": epochs,
         "q_table_len": len(q_table),
         "learning_rate": LEARNING_RATE,
+        "epsilon_greedy": EPSILON_GREEDY,
+        "force_exploration": FORCE_EXPLORATION
     }
     with open(get_name(epochs, "weights") + ".pck", "wb") as f:
         pickle.dump(q_table, f)
@@ -215,7 +218,8 @@ def print_q_table(q_table: dict[tuple]):
     width = 10
     new_states = 0
     for state, values in q_table.items():
-        if not all(v == 0 for v in values):
+        # if not all(v == 0 for v in values):
+        if not 0 in values:
             state_str = format_state(state, width)
             actions_str = format_action(values, width)
             # actions_str = " | ".join(f"{float(v):.2f}" for v in values)

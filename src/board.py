@@ -33,20 +33,24 @@ class Board:
         if TRAINING_MODE:
             self.interface = False
             self.training_mode = True
-            self.ai_player = True
+            self.ai_player = False
+            self.load_checkpoint = False
             if LOAD_CHECKPOINT:
                 data = load_data()
                 shape = data["shape"]
                 self.previous_epochs = data["epochs"]
+                self.load_checkpoint = True
             self.total_epochs = EPOCHS
             self.epochs = EPOCHS
         elif AI_MODE:
             self.interface = True
             self.training_mode = False
             self.ai_player = True
+            self.load_checkpoint = True
         else:
             self.interface = True
             self.training_mode = False
+            self.load_checkpoint = False
             self.ai_player = False
 
         if len(shape) != 2:
@@ -77,8 +81,8 @@ class Board:
         self.red_apples_ate: list[int] = []
         self.board = np.zeros((shape[0], shape[1]))
         self.walls: list = self.create_wall()
-        if self.ai_player:
-            self.snake: Snake = self.create_snake(load_checkpoint=True)
+        self.snake: Snake = self.create_snake(
+            load_checkpoint=self.load_checkpoint)
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         self.green_apple_counter: int = 0

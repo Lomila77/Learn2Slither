@@ -2,7 +2,7 @@ from typing import Any
 import numpy as np
 from random import randint, uniform
 from pygame.math import Vector2
-from src.config import LEARNING_RATE, EPSILON_GREEDY
+from src.config import LEARNING_RATE, EPSILON_GREEDY, FORCE_EXPLORATION
 from src.utils import (
     UP,
     DOWN,
@@ -103,7 +103,13 @@ class Brain:
 
     def take_action(self, state):
         if uniform(0, 1) < self.epsilon_greedy:
-            action = randint(0, 3)
+            if FORCE_EXPLORATION:
+                action = min(
+                    enumerate(self.q_table[state]),
+                    key=lambda x: abs(x[1])
+                )[0]
+            else:
+                action = randint(0, 3)
         else:
             action = np.argmax(self.q_table[state])
         if self.epsilon_greedy > 0.01:
