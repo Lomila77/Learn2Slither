@@ -44,7 +44,6 @@ class Board:
             self.interface = True
             self.training_mode = False
             self.ai_player = True
-            LOAD_CHECKPOINT = True
         else:
             self.interface = True
             self.training_mode = False
@@ -78,7 +77,8 @@ class Board:
         self.red_apples_ate: list[int] = []
         self.board = np.zeros((shape[0], shape[1]))
         self.walls: list = self.create_wall()
-        self.snake: Snake = self.create_snake(load_checkpoint=LOAD_CHECKPOINT)
+        if self.ai_player:
+            self.snake: Snake = self.create_snake(load_checkpoint=True)
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         self.green_apple_counter: int = 0
