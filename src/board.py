@@ -257,7 +257,7 @@ class Board:
         self.movement_counter = 0
 
     def display(self):
-        #os.system('clear')
+        os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
