@@ -42,6 +42,15 @@ class Apple(Object, ABC):
 
     def get_position(self):
         return self.pos
+    
+    def draw(self, screen):
+        apple_rect = pygame.Rect(
+            int(self.pos.x * CELL_SIZE),
+            int(self.pos.y * CELL_SIZE),
+            CELL_SIZE,
+            CELL_SIZE
+        )
+        screen.blit(self.image, apple_rect)
 
 
 class GreenApple(Apple):
@@ -54,15 +63,6 @@ class GreenApple(Apple):
                 'graphics/green_apple.png').convert_alpha()
             self.image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
 
-    def draw(self, screen):
-        apple_rect = pygame.Rect(
-            int(self.pos.x * CELL_SIZE),
-            int(self.pos.y * CELL_SIZE),
-            CELL_SIZE,
-            CELL_SIZE
-        )
-        screen.blit(self.image, apple_rect)
-
 
 class RedApple(Apple):
     def __init__(self, board: list[list[int]], interface: bool = True):
@@ -72,13 +72,3 @@ class RedApple(Apple):
         if self.interface:
             image = pygame.image.load('graphics/red_apple.png').convert_alpha()
             self.image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
-
-    def draw(self, screen):
-        apple_rect = pygame.Rect(
-            int(self.pos.x * CELL_SIZE),
-            int(self.pos.y * CELL_SIZE),
-            CELL_SIZE,
-            CELL_SIZE
-        )
-        screen.blit(self.image, apple_rect)
-

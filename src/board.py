@@ -1,4 +1,3 @@
-from ast import If
 import os
 import pygame
 import time
@@ -21,7 +20,7 @@ from src.config import (
 from src.utils import (
     UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON,
     draw_step_graph, draw_object_graph,
-    get_name, save_data, load_data
+    get_name, save_data, load_data, GREEN_APPLE, RED_APPLE
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
@@ -37,7 +36,6 @@ class Board:
             self.load_checkpoint = False
             if LOAD_CHECKPOINT:
                 data = load_data()
-                shape = data["shape"]
                 self.previous_epochs = data["epochs"]
                 self.load_checkpoint = True
             self.total_epochs = EPOCHS
@@ -225,14 +223,18 @@ class Board:
     def create_green_apple(self, nb: int = 2):
         apples: list = []
         for _ in range(nb):
-            apples.append(GreenApple(self.board, self.interface))
+            apple = GreenApple(self.board, self.interface)
+            self.board[int(apple.pos.x)][int(apple.pos.y)] = GREEN_APPLE
+            apples.append(apple)
         print("Create green apple")
         return apples
 
     def create_red_apple(self, nb: int = 1):
         apples: list = []
         for _ in range(nb):
-            apples.append(RedApple(self.board, self.interface))
+            apple = RedApple(self.board, self.interface)
+            self.board[int(apple.pos.x)][int(apple.pos.y)] = RED_APPLE
+            apples.append(apple)
         print("Create green apple")
         return apples
 
@@ -261,7 +263,7 @@ class Board:
         self.movement_counter = 0
 
     def display(self):
-        os.system('clear')
+        #os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
