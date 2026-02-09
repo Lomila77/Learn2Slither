@@ -87,7 +87,6 @@ class Board:
     def play(self):
         try:
             while True:
-                self.display()
                 if self.training_mode:
                     self.display()
                     if self.is_finished():
@@ -274,7 +273,6 @@ class Board:
         snake_vision = self.snake.vision()
         underline = "=" * width_board * symbols_len
         print(underline + "=" * len(separator) + underline)
-        print(underline + "=" * len(separator) + underline)
         print("BOARD".center(
             width_board * symbols_len) + separator + "SNAKE VISION".center(
                 width_board * symbols_len))
@@ -373,7 +371,7 @@ class Board:
                 self.reset()
             else:
                 self.reset_training_counter()
-                epochs = self.total_epochs if self.epochs == 0 else self.epochs
+                epochs = self.total_epochs - self.epochs
                 if LOAD_CHECKPOINT:
                     epochs += self.previous_epochs
                 save_data(epochs, self.snake.brain.q_table)
