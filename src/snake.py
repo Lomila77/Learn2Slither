@@ -3,17 +3,20 @@ import numpy as np
 from pygame.math import Vector2
 from src.config import CELL_SIZE
 from src.brain import Brain
-from src.object import Object, RedApple
-from src.utils import GREEN_APPLE, RED_APPLE, get_random_position
+from src.object import Object
 from src.utils import (
     UP,
     DOWN,
     LEFT,
     RIGHT,
+    GREEN_APPLE,
+    RED_APPLE,
     SNAKE_HEAD,
     SNAKE_BODY,
     WALL,
     EMPTY_CASE,
+    get_random_position,
+    draw_position_on_board
 )
 
 
@@ -26,10 +29,8 @@ class Snake(Object):
         interface: bool = True,
         load_checkpoint: bool = False
     ) -> None:
-        self.head_id = SNAKE_HEAD
-        self.body_id = SNAKE_BODY
-        # TODO: modifier la direction de base
-        self.direction = Vector2(1, 0)
+        # TODO: Choix random pour la direction
+        self.direction = DOWN
         self.game_board = board
         self.interface = interface
         if self.interface:
@@ -101,25 +102,24 @@ class Snake(Object):
         for _ in range(2):
             last_pos = self.body[-1]
             for action in self.brain.actions:
-                new_place = last_pos + action
+                body = last_pos + action
                 # Board is indexed as board[row][col] = board[y][x]
                 if (
-                    0 <= new_place.x < self.game_board.shape[1] and
-                    0 <= new_place.y < self.game_board.shape[0] and
-                    self.game_board[int(new_place.y)][int(new_place.x)] == EMPTY_CASE and
-                    new_place not in self.body
+                    0 < body.x < self.game_board.shape[1] and
+                    0 < body.y < self.game_board.shape[0] and
+                    self.game_board[int(body.y)][int(body.x)] == EMPTY_CASE and
+                    body not in self.body
                 ):
-                    self.body.append(new_place)
+                    self.body.append(body)
                     break
 
         if self.get_length() != 3:
             print(self.body)
             raise ValueError("The snake is too short... No place available")
 
-        for i, snake_piece in enumerate(self.body):
+        for i, body in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
-            # board[row][col] = board[y][x]
-            self.game_board[int(snake_piece.y)][int(snake_piece.x)] = id
+            draw_position_on_board(self.game_board, body, id)
         self.growth_effect = -1
         self.max_length = self.get_length()
 
@@ -209,7 +209,7 @@ class Snake(Object):
         self.direction = action
         # Clear current snake positions
         for pos in self.body:
-            self.game_board[int(pos.y)][int(pos.x)] = EMPTY_CASE
+            draw_position_on_board(self.game_board, pos, EMPTY_CASE)
         body_copy = (
             self.body[:] if self.growth_effect == 0 else self.body[
                 :self.growth_effect]
@@ -217,15 +217,9 @@ class Snake(Object):
         self.growth_effect = -1
         body_copy.insert(0, body_copy[0] + self.direction)
         self.body = body_copy[:]
-        head = self.get_head_position()
-        # Bounds with board[row][col] = board[y][x]
-        if (
-            0 <= head.x < self.game_board.shape[1] and
-            0 <= head.y < self.game_board.shape[0]
-        ):
-            for i, pos in enumerate(self.body):
-                id = SNAKE_HEAD if i == 0 else SNAKE_BODY
-                self.game_board[int(pos.y)][int(pos.x)] = id
+        for i, pos in enumerate(self.body):
+            id = SNAKE_HEAD if i == 0 else SNAKE_BODY
+            draw_position_on_board(self.game_board, pos, id)
         self.update_max_length()
 
     def eat(self, nutrient: int = 0):
@@ -259,6 +253,34 @@ class Snake(Object):
 
     def call_brain(self):
         x_axis, y_axis = self.watch()
-        action = self.brain.call_brain(
-            x_axis, y_axis, self.get_position())
+        shape = self.game_board.shape
+        if shape[0] > 10 or shape[1] > 10:
+            head = self.get_head_position()
+            height, width = shape
+
+            start_row = max(0, min(height - 10, int(head.y) - 5))
+            start_col = max(0, min(width - 10, int(head.x) - 5))
+            end_row = start_row + 10
+            end_col = start_col + 10
+            local_board = self.game_board[start_row:end_row, start_col:end_col]
+
+            local_body = [
+                Vector2(pos.x - start_col, pos.y - start_row)
+                for pos in self.body
+            ]
+            local_head = local_body[0]
+
+            local_x_axis = list(local_board[int(local_head.y)])
+            local_y_axis = [
+                local_board[row][int(local_head.x)] for row in range(10)
+            ]
+
+            action = self.brain.call_brain(
+                local_x_axis,
+                local_y_axis,
+                local_body
+            )
+        else:
+            action = self.brain.call_brain(
+                x_axis, y_axis, self.get_position())
         return action

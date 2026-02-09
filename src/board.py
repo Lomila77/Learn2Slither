@@ -20,7 +20,7 @@ from src.config import (
 from src.utils import (
     UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON,
     draw_step_graph, draw_object_graph,
-    get_name, save_data, load_data, GREEN_APPLE, RED_APPLE
+    get_name, save_data, load_data, GREEN_APPLE, RED_APPLE, WALL
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
@@ -34,6 +34,7 @@ class Board:
             self.training_mode = True
             self.ai_player = False
             self.load_checkpoint = False
+            # TODO: Pas de if, load le checkpoint si ce n'est pas une chaine vide
             if LOAD_CHECKPOINT:
                 data = load_data()
                 self.previous_epochs = data["epochs"]
@@ -46,6 +47,7 @@ class Board:
             self.ai_player = True
             self.load_checkpoint = True
         else:
+            # TODO: Load les variables en haut par defaut
             self.interface = True
             self.training_mode = False
             self.load_checkpoint = False
@@ -92,19 +94,24 @@ class Board:
     def play(self):
         try:
             while True:
-                self.display()
-                if self.is_finished():
-                    self.game_over()
-                self.check_collectible()
                 if self.training_mode:
+                    self.display()
+                    if self.is_finished():
+                        self.game_over()
+                    self.check_collectible()
                     terminal, action = self.snake.call_brain()
                     if terminal:
                         self.game_over()
                         continue
                     self.snake.move(action)
+                    self.movement_counter += 1
                     time.sleep(TRAINING_SPEED / 1000)
                 else:
                     for event in pygame.event.get():
+                        self.display()
+                        if self.is_finished():
+                            self.game_over()
+                        self.check_collectible()
                         if event.type == pygame.QUIT:
                             self.quit()
                         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -130,6 +137,7 @@ class Board:
                         else:
                             _, action = self.snake.call_brain()
                             self.snake.move(action)
+                        self.movement_counter += 1
                     self.screen.fill(self.background_color)
                     self.draw_grass()
                     self.draw_wall()
@@ -137,7 +145,6 @@ class Board:
                     self.draw_score()
                     pygame.display.update()
                     self.clock.tick(self.framerate)
-                self.movement_counter += 1
         except KeyboardInterrupt:
             self.game_over(True)
 
@@ -212,11 +219,11 @@ class Board:
         walls: list[Vector2] = []
         for row_idx, row in enumerate(self.board):
             for col_idx, _ in enumerate(row):
-                if col_idx == 0 or col_idx == len(row) - 1:
-                    self.board[row_idx][col_idx] = 5
-                    walls.append(Vector2(col_idx, row_idx))
-                if row_idx == 0 or row_idx == len(self.board) - 1:
-                    self.board[row_idx][col_idx] = 5
+                if (
+                    col_idx == 0 or col_idx == len(row) - 1) or (
+                    row_idx == 0 or row_idx == len(self.board) - 1
+                ):
+                    self.board[row_idx][col_idx] = WALL
                     walls.append(Vector2(col_idx, row_idx))
         return walls
 
@@ -224,7 +231,7 @@ class Board:
         apples: list = []
         for _ in range(nb):
             apple = GreenApple(self.board, self.interface)
-            self.board[int(apple.pos.x)][int(apple.pos.y)] = GREEN_APPLE
+            self.board[int(apple.pos.y)][int(apple.pos.x)] = GREEN_APPLE
             apples.append(apple)
         print("Create green apple")
         return apples
@@ -233,7 +240,7 @@ class Board:
         apples: list = []
         for _ in range(nb):
             apple = RedApple(self.board, self.interface)
-            self.board[int(apple.pos.x)][int(apple.pos.y)] = RED_APPLE
+            self.board[int(apple.pos.y)][int(apple.pos.x)] = RED_APPLE
             apples.append(apple)
         print("Create green apple")
         return apples
@@ -275,16 +282,14 @@ class Board:
             width_board * symbols_len) + separator + "SNAKE VISION".center(
                 width_board * symbols_len))
         print(underline + separator + underline)
-        board_transposed = self.board
-        vision_transposed = snake_vision
-        for i in range(len(board_transposed)):
+        for i in range(len(self.board)):
             line1 = ''.join(
-                SYMBOLS.get(cell, '?') for cell in board_transposed[i])
+                SYMBOLS.get(cell, '?') for cell in self.board[i])
             line2 = ''.join(
-                SYMBOLS.get(cell, '?') for cell in vision_transposed[i])
+                SYMBOLS.get(cell, '?') for cell in snake_vision[i])
             print(line1 + separator + line2)
-        print(underline + "=" * len(separator) + underline)
         if self.training_mode:
+            print(underline + "=" * len(separator) + underline)
             prev_action = DIRECTIONS_ICON[self.snake.brain.prev_action]
             print(f"EPOCHS: {self.epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))

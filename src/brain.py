@@ -119,6 +119,9 @@ class Brain:
     def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
         def get_obj(array: list[int]):
             for i, obj in enumerate(array):
+                # TODO: corrige la methode dans call_brain pour endiguer ce if
+                if i == len(array) - 1:
+                    return (i, np.float64(WALL))
                 if obj != EMPTY_CASE:
                     return (i, obj)
         axis = y_axis[:int(pos.y)]

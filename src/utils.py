@@ -7,6 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MultipleLocator
+from seaborn._core.typing import Vector
 from src.config import (
     LEARNING_RATE,
     LOAD_WEIGHTS,
@@ -46,6 +47,10 @@ SYMBOLS = {
     5: '🌊',
     6: '  ',
 }
+
+
+def draw_position_on_board(board: list[list], pos: Vector2, id: int):
+    board[int(pos.y)][int(pos.x)] = id
 
 
 def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
