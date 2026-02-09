@@ -10,33 +10,32 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Modifier le fichier `config.py` selon vos besoins :
+Modifier le fichier `config.json` selon vos besoins :
 
 ```python
-# Modes d'exécution
-TRAINING_MODE = False    # True: entraînement, False: jeu
-AI_MODE = True          # True: IA joue, False: joueur humain
-LOAD_CHECKPOINT = False # Charger un modèle pré-entraîné
-
-# SI TOUT EST A FAUX PASSE EN MODE MANUEL
-
-# Paramètres d'entraînement
-MAP_SHAPE = [10, 10]    # Taille de la grille
-LEARNING_RATE = 0.9     # Taux d'apprentissage
-EPSILON_GREEDY = 0.0    # Exploration (0.0-1.0)
-EPOCHS = 20000          # Nombre d'époques
-
-# Paramètres visuels
-CELL_SIZE = 40          # Taille des cellules
-FRAMERATE = 60          # FPS
-SPEED = 150            # Vitesse de jeu (ms)
-TRAINING_SPEED = 0     # Vitesse d'entraînement (ms)
-
+{
 # Sauvegarde
-FILENAME = "try_1"
-DIRECTORY = "./weights/"
-LOAD_WEIGHTS = "weights/10*10_epochs_40000_try_1_weights.pck"
-LOAD_DATA = "weights/10*10_epochs_40000_try_1_config.json"
+    "save_as": "exploration",     # Nom de l'entrainement specifique
+    "save_in": "./weights/exploration/",
+    "load_data_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_config.json",
+    "load_weights_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_weights.pck",
+# Modes d'exécution
+  # Si tout est faux passe en mode manuel
+    "training_mode": true,        # True: entraînement, False: jeu
+    "load_checkpoint": false,     # Charger un modèle pré-entraîné
+    "ai_mode": false,             # True: IA joue, False: joueur humain
+# Paramètres d'entraînement
+    "map_shape": [40, 40],        # Taille de la grille
+    "learning_rate": 0.9,         # Taux d'apprentissage
+    "epsilon_greedy": 0.8,        # Exploration (0.0-1.0)
+    "force_exploration": false,   # True: choix inconnue, False: choix random
+    "epochs": 15000,              # Nombre d'époques
+# Paramètres visuels
+    "cell_size": 40,              # Taille des cellules
+    "framerate": 60,              # FPS
+    "speed": 150,                 # Vitesse de jeu (ms)
+    "training_speed": 0           # Vitesse d'entraînement (ms)
+}
 ```
 
 ## Utilisation
@@ -55,9 +54,10 @@ python -m src.utils
 
 Après l'entraînement, les fichiers suivants sont générés dans `weights/` :
 
-- **Poids du modèle** : `.pck` et `.json`
+- **Poids du modèle** : `.pck`
+- **Information de l'entraînement** : `.json`
 - **Graphiques de suivi** :
-  - Objets collectés par époque
+  - Objets collectés et taille du serpent par époque
   - Nombre de pas par époque
 
 ## Contrôles
@@ -65,3 +65,4 @@ Après l'entraînement, les fichiers suivants sont générés dans `weights/` :
 - **Mode humain** : Flèches directionnelles ou WASD
 - **Échap** : Quitter la partie
 - **Mode IA** : Automatique
+  - Appuyer sur n'importe quelles touches pour accelerer le rendue
