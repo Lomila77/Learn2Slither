@@ -17,9 +17,9 @@ LEARNING_RATE = _cfg["learning_rate"]
 EPSILON_GREEDY = _cfg["epsilon_greedy"]
 FORCE_EXPLORATION = _cfg["force_exploration"]
 EPOCHS = _cfg["epochs"]
-CELL_SIZE = _cfg["training_mode"]
-FRAMERATE = _cfg["training_mode"]
-SPEED = _cfg["training_mode"]
-TRAINING_SPEED = _cfg["training_mode"]
+CELL_SIZE = _cfg["cell_size"]
+FRAMERATE = _cfg["framerate"]
+SPEED = _cfg["speed"]
+TRAINING_SPEED = _cfg["training_speed"]
 
 SCREEN_UPDATE = pygame.USEREVENT
