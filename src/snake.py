@@ -1,5 +1,6 @@
 import pygame
 import numpy as np
+from random import randint
 from pygame.math import Vector2
 from src.config import CELL_SIZE
 from src.brain import Brain
@@ -29,8 +30,6 @@ class Snake(Object):
         interface: bool = True,
         load_checkpoint: bool = False
     ) -> None:
-        # TODO: Choix random pour la direction
-        self.direction = DOWN
         self.game_board = board
         self.interface = interface
         if self.interface:
@@ -47,12 +46,14 @@ class Snake(Object):
             self.image_body_tr = pygame.transform.scale(
                 pygame.image.load('graphics/body_tr.png').convert_alpha(),
                 (CELL_SIZE, CELL_SIZE))
-            self.image_body_hor = pygame.transform.scale(
-                pygame.image.load('graphics/body_horizontal.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
-            self.image_body_ver = pygame.transform.scale(
-                pygame.image.load('graphics/body_vertical.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+            self.image_body_hor = pygame.transform.scale(pygame.image.load(
+                    'graphics/body_horizontal.png'
+                ).convert_alpha(), (CELL_SIZE, CELL_SIZE)
+            )
+            self.image_body_ver = pygame.transform.scale(pygame.image.load(
+                'graphics/body_vertical.png').convert_alpha(),
+                (CELL_SIZE, CELL_SIZE)
+            )
             self.image_head_left = pygame.transform.scale(
                 pygame.image.load('graphics/head_left.png').convert_alpha(),
                 (CELL_SIZE, CELL_SIZE))
@@ -98,6 +99,7 @@ class Snake(Object):
             )
         else:
             self.brain = brain
+        self.direction = self.brain.actions[randint(0, 3)]
 
         for _ in range(2):
             last_pos = self.body[-1]

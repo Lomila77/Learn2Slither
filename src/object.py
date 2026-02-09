@@ -42,7 +42,7 @@ class Apple(Object, ABC):
 
     def get_position(self):
         return self.pos
-    
+
     def draw(self, screen):
         apple_rect = pygame.Rect(
             int(self.pos.x * CELL_SIZE),

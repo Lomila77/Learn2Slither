@@ -7,7 +7,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MultipleLocator
-from seaborn._core.typing import Vector
 from src.config import (
     LEARNING_RATE,
     LOAD_WEIGHTS,
@@ -197,14 +196,14 @@ def print_q_table(q_table: dict[tuple]):
             sym = SYMBOLS.get(obj, "?")
             parts.append(f"{label} : ({dist} - {sym})".center(width))
         return " | ".join(parts)
-    
+
     def format_action(values, width):
         labels = [
             DIRECTIONS_ICON[0],
             DIRECTIONS_ICON[1],
             DIRECTIONS_ICON[2],
             DIRECTIONS_ICON[3]
-        ]  
+        ]
         parts = []
         for value, label in zip(values, labels):
             parts.append(f"{label} :  {value:.2f}  ".center(width))
@@ -224,7 +223,7 @@ def print_q_table(q_table: dict[tuple]):
     new_states = 0
     for state, values in q_table.items():
         # if not all(v == 0 for v in values):
-        if not 0 in values:
+        if 0 not in values:
             state_str = format_state(state, width)
             actions_str = format_action(values, width)
             # actions_str = " | ".join(f"{float(v):.2f}" for v in values)

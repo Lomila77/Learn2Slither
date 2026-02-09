@@ -94,7 +94,7 @@ class Brain:
         if self.prev_terminal:
             esperance = prev_q_sa + self.lr * (
                 prev_reward - prev_q_sa)
-            
+
         else:
             esperance = prev_q_sa + self.lr * (
                 prev_reward + self.gamma * q_sa - prev_q_sa)
@@ -119,7 +119,6 @@ class Brain:
     def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
         def get_obj(array: list[int]):
             for i, obj in enumerate(array):
-                # TODO: corrige la methode dans call_brain pour endiguer ce if
                 if i == len(array) - 1:
                     return (i, np.float64(WALL))
                 if obj != EMPTY_CASE:

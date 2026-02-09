@@ -1,27 +1,25 @@
 import pygame
+import json
 
-TRAINING_MODE = False
-LOAD_CHECKPOINT = True
-AI_MODE = True
-MAP_SHAPE = [10, 10]
-LEARNING_RATE = 0.9
-EPSILON_GREEDY = 0.0  # 0.9
-FORCE_EXPLORATION = False
-EPOCHS = 25000
 
-CELL_SIZE = 40
-FRAMERATE = 60
+with open("config.json", "r") as f:
+    _cfg = json.load(f)
+
+FILENAME = _cfg["save_as"]
+DIRECTORY = _cfg["save_in"]
+LOAD_DATA = _cfg["load_data_from"]
+LOAD_WEIGHTS = _cfg["load_weights_from"]
+TRAINING_MODE = _cfg["training_mode"]
+LOAD_CHECKPOINT = _cfg["load_checkpoint"]
+AI_MODE = _cfg["ai_mode"]
+MAP_SHAPE = _cfg["map_shape"]
+LEARNING_RATE = _cfg["learning_rate"]
+EPSILON_GREEDY = _cfg["epsilon_greedy"]
+FORCE_EXPLORATION = _cfg["force_exploration"]
+EPOCHS = _cfg["epochs"]
+CELL_SIZE = _cfg["training_mode"]
+FRAMERATE = _cfg["training_mode"]
+SPEED = _cfg["training_mode"]
+TRAINING_SPEED = _cfg["training_mode"]
 
 SCREEN_UPDATE = pygame.USEREVENT
-SPEED = 150
-TRAINING_SPEED = 0
-
-# SAVE PLACE
-FILENAME = "hybrid"
-DIRECTORY = "./weights/hybrid/"
-
-# LOAD FOR MONITORING OR CHECKPOINT
-LOAD_DATA = (
-    "weights/force_exploration/10*10_epochs_40000_force_exploration_config.json")
-LOAD_WEIGHTS = (
-    "weights/force_exploration/10*10_epochs_40000_force_exploration_weights.pck")

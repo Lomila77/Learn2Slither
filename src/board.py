@@ -29,12 +29,13 @@ from src.snake import Snake
 class Board:
     def __init__(self) -> None:
         shape = MAP_SHAPE
+        self.interface = True
+        self.training_mode = False
+        self.load_checkpoint = False
+        self.ai_player = False
         if TRAINING_MODE:
             self.interface = False
             self.training_mode = True
-            self.ai_player = False
-            self.load_checkpoint = False
-            # TODO: Pas de if, load le checkpoint si ce n'est pas une chaine vide
             if LOAD_CHECKPOINT:
                 data = load_data()
                 self.previous_epochs = data["epochs"]
@@ -42,16 +43,8 @@ class Board:
             self.total_epochs = EPOCHS
             self.epochs = EPOCHS
         elif AI_MODE:
-            self.interface = True
-            self.training_mode = False
             self.ai_player = True
             self.load_checkpoint = True
-        else:
-            # TODO: Load les variables en haut par defaut
-            self.interface = True
-            self.training_mode = False
-            self.load_checkpoint = False
-            self.ai_player = False
 
         if len(shape) != 2:
             raise ValueError("Need to be a 2d map")
@@ -94,6 +87,7 @@ class Board:
     def play(self):
         try:
             while True:
+                self.display()
                 if self.training_mode:
                     self.display()
                     if self.is_finished():
@@ -105,7 +99,8 @@ class Board:
                         continue
                     self.snake.move(action)
                     self.movement_counter += 1
-                    time.sleep(TRAINING_SPEED / 1000)
+                    if TRAINING_SPEED != 0:
+                        time.sleep(TRAINING_SPEED / 1000)
                 else:
                     for event in pygame.event.get():
                         self.display()
@@ -114,7 +109,9 @@ class Board:
                         self.check_collectible()
                         if event.type == pygame.QUIT:
                             self.quit()
-                        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        if (event.type == pygame.KEYDOWN) and (
+                            event.key == pygame.K_ESCAPE
+                        ):
                             self.game_over()
                         if not self.ai_player:
                             if event.type == SCREEN_UPDATE:
@@ -270,7 +267,7 @@ class Board:
         self.movement_counter = 0
 
     def display(self):
-        #os.system('clear')
+        os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
@@ -316,9 +313,11 @@ class Board:
                     width_board * symbols_len))
             print(underline + separator + underline)
             print(f"Action: {prev_action}".center(
-                width_board * symbols_len + 1
-            ) + separator + f"Length: {self.snake.brain.get_length_q_table()}".center(
-                    width_board * symbols_len))
+                width_board * symbols_len + 1) + separator
+                + f"Length: {self.snake.brain.get_length_q_table()}".center(
+                    width_board * symbols_len
+                )
+            )
             print(f"Reward: {self.snake.brain.prev_reward}".center(
                 width_board * symbols_len) + separator)
 
