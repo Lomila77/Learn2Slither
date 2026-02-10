@@ -2,7 +2,6 @@ import pygame
 import numpy as np
 from random import randint
 from pygame.math import Vector2
-from src.config import CELL_SIZE
 from src.brain import Brain
 from src.object import Object
 from src.utils import (
@@ -35,49 +34,49 @@ class Snake(Object):
         if self.interface:
             self.image_body_bl = pygame.transform.scale(
                 pygame.image.load('graphics/body_bl.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE)
+                (self.cell_size, self.cell_size)
             )
             self.image_body_br = pygame.transform.scale(
                 pygame.image.load('graphics/body_br.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_body_tl = pygame.transform.scale(
                 pygame.image.load('graphics/body_tl.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_body_tr = pygame.transform.scale(
                 pygame.image.load('graphics/body_tr.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_body_hor = pygame.transform.scale(pygame.image.load(
                     'graphics/body_horizontal.png'
-                ).convert_alpha(), (CELL_SIZE, CELL_SIZE)
+                ).convert_alpha(), (self.cell_size, self.cell_size)
             )
             self.image_body_ver = pygame.transform.scale(pygame.image.load(
                 'graphics/body_vertical.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE)
+                (self.cell_size, self.cell_size)
             )
             self.image_head_left = pygame.transform.scale(
                 pygame.image.load('graphics/head_left.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_head_right = pygame.transform.scale(
                 pygame.image.load('graphics/head_right.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_head_up = pygame.transform.scale(
                 pygame.image.load('graphics/head_up.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_head_down = pygame.transform.scale(
                 pygame.image.load('graphics/head_down.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_tail_left = pygame.transform.scale(
                 pygame.image.load('graphics/tail_left.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_tail_right = pygame.transform.scale(
                 pygame.image.load('graphics/tail_right.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_tail_up = pygame.transform.scale(
                 pygame.image.load('graphics/tail_up.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.image_tail_down = pygame.transform.scale(
                 pygame.image.load('graphics/tail_down.png').convert_alpha(),
-                (CELL_SIZE, CELL_SIZE))
+                (self.cell_size, self.cell_size))
             self.crunch_sound = pygame.mixer.Sound('sound/crunch.wav')
 
         row, col = get_random_position(
@@ -116,7 +115,6 @@ class Snake(Object):
                     break
 
         if self.get_length() != 3:
-            print(self.body)
             raise ValueError("The snake is too short... No place available")
 
         for i, body in enumerate(self.body):
@@ -156,10 +154,10 @@ class Snake(Object):
         tail = self.update_tail_graphics()
         for index, block in enumerate(self.body):
             rect = pygame.Rect(
-                int(block.x * CELL_SIZE),
-                int(block.y * CELL_SIZE),
-                CELL_SIZE,
-                CELL_SIZE
+                int(block.x * self.cell_size),
+                int(block.y * self.cell_size),
+                self.cell_size,
+                self.cell_size
             )
 
             if index == 0:
@@ -217,7 +215,10 @@ class Snake(Object):
                 :self.growth_effect]
         )
         self.growth_effect = -1
-        body_copy.insert(0, body_copy[0] + self.direction)
+        if len(body_copy) != 0:
+            body_copy.insert(0, body_copy[0] + self.direction)
+        else:
+            body_copy.append(self.get_head_position() + self.direction)
         self.body = body_copy[:]
         for i, pos in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
@@ -253,7 +254,7 @@ class Snake(Object):
         ]
         return x_axis, y_axis
 
-    def call_brain(self):
+    def call_brain(self, training: bool = False):
         x_axis, y_axis = self.watch()
         shape = self.game_board.shape
         if shape[0] > 10 or shape[1] > 10:
@@ -280,9 +281,10 @@ class Snake(Object):
             action = self.brain.call_brain(
                 local_x_axis,
                 local_y_axis,
-                local_body
+                local_body,
+                training=training
             )
         else:
             action = self.brain.call_brain(
-                x_axis, y_axis, self.get_position())
+                x_axis, y_axis, self.get_position(), training=training)
         return action

@@ -5,18 +5,8 @@ from pygame.math import Vector2
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 from matplotlib.ticker import MultipleLocator
-from src.config import (
-    LEARNING_RATE,
-    LOAD_WEIGHTS,
-    MAP_SHAPE,
-    FILENAME,
-    DIRECTORY,
-    LOAD_DATA,
-    EPSILON_GREEDY,
-    FORCE_EXPLORATION
-)
+
 
 UP = Vector2(0, -1)
 DOWN = Vector2(0, 1)
@@ -47,6 +37,9 @@ SYMBOLS = {
     6: '  ',
 }
 
+with open("config.json", "r") as f:
+    _cfg = json.load(f)
+
 
 def draw_position_on_board(board: list[list], pos: Vector2, id: int):
     board[int(pos.y)][int(pos.x)] = id
@@ -67,10 +60,11 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
 
 
 def get_name(epochs, add_to_name: str):
-    shape = f"{MAP_SHAPE[0]}*{MAP_SHAPE[1]}_"
+    shape = _cfg["map_shape"]
+    shape = f"{shape[0]}*{shape[1]}_"
     epoch = f"epochs_{epochs}_"
-    filename = f"{FILENAME}_"
-    return DIRECTORY + shape + epoch + filename + add_to_name
+    filename = f"{_cfg['save_as']}_"
+    return _cfg["save_in"] + shape + epoch + filename + add_to_name
 
 
 def smooth(values: list[int], window=200):
@@ -157,19 +151,20 @@ def draw_object_graph(
 
 
 def load_q_table():
-    with open(LOAD_WEIGHTS, "rb") as f:
+    with open(_cfg["load_weights_from"], "rb") as f:
         q_table = pickle.load(f)
     return q_table
 
 
 def save_data(epochs: int, q_table):
+
     data: dict = {
-        "shape": MAP_SHAPE,
+        "shape": _cfg["map_shape"],
         "epochs": epochs,
         "q_table_len": len(q_table),
-        "learning_rate": LEARNING_RATE,
-        "epsilon_greedy": EPSILON_GREEDY,
-        "force_exploration": FORCE_EXPLORATION
+        "learning_rate": _cfg["learning_rate"],
+        "epsilon_greedy": _cfg["epsilon_greedy"],
+        "force_exploration": _cfg["force_exploration"]
     }
     with open(get_name(epochs, "weights") + ".pck", "wb") as f:
         pickle.dump(q_table, f)
@@ -178,7 +173,7 @@ def save_data(epochs: int, q_table):
 
 
 def load_data():
-    with open(LOAD_DATA, "r") as f:
+    with open(_cfg["load_data_from"], "r") as f:
         data = json.load(f)
     return data
 
@@ -235,6 +230,6 @@ def print_q_table(q_table: dict[tuple]):
 
 
 if __name__ == "__main__":
-    with open(LOAD_WEIGHTS, "rb") as f:
+    with open(_cfg["load_weights_from"], "rb") as f:
         q_table = pickle.load(f)
     print_q_table(q_table)

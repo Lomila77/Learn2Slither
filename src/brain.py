@@ -2,8 +2,8 @@ from typing import Any
 import numpy as np
 from random import randint, uniform
 from pygame.math import Vector2
-from src.config import LEARNING_RATE, EPSILON_GREEDY, FORCE_EXPLORATION
 from src.utils import (
+    _cfg,
     UP,
     DOWN,
     LEFT,
@@ -37,9 +37,10 @@ class Brain:
         self.q_table: tuple = {}
         if q_table:
             self.q_table = load_q_table()
-        self.lr = LEARNING_RATE
-        self.gamma = LEARNING_RATE - 0.01
-        self.epsilon_greedy: float = EPSILON_GREEDY
+        self.lr = _cfg["learning_rate"]
+        self.gamma = self.lr - 0.01
+        self.epsilon_greedy: float = _cfg["epsilon_greedy"]
+        self.force_exploration = _cfg["force_exploration"]
         self.prev_state: tuple = None
         self.prev_action: int = 0
         self.prev_reward: int = 0
@@ -49,10 +50,12 @@ class Brain:
         return len(self.q_table)
 
     def reset(self):
-        self.prev_state = None
-        self.lr = LEARNING_RATE
+        self.prev_state: tuple = None
+        self.prev_action: int = 0
+        self.prev_reward: int = 0
+        self.prev_terminal: bool = False
+        self.lr = _cfg["learning_rate"]
         self.epsilon_greedy = 0.1
-        self.prev_terminal = False
 
     def get_reward(
         self,
@@ -103,7 +106,7 @@ class Brain:
 
     def take_action(self, state):
         if uniform(0, 1) < self.epsilon_greedy:
-            if FORCE_EXPLORATION:
+            if self.force_exploration:
                 action = min(
                     enumerate(self.q_table[state]),
                     key=lambda x: abs(x[1])
@@ -135,13 +138,14 @@ class Brain:
         self,
         x_axis: list[int],
         y_axis: list[int],
-        pos: list[Vector2]
+        pos: list[Vector2],
+        training: bool = False
     ) -> Vector2:
         head_pos = pos[0]
         state = self.get_state(x_axis, y_axis, head_pos)
         if state not in self.q_table:
             self.q_table[state] = [0.0, 0.0, 0.0, 0.0]
-        if self.prev_state is not None:
+        if self.prev_state is not None and training:
             self.q_table[self.prev_state][self.prev_action] = self.q_function(
                 prev_q_sa=self.q_table[self.prev_state][self.prev_action],
                 prev_reward=self.prev_reward,

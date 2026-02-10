@@ -1,14 +1,15 @@
 import pygame
 from pygame.math import Vector2
 from abc import ABC, abstractmethod
-from src.utils import get_random_position
+from src.utils import get_random_position, _cfg
 from src.utils import (
     EMPTY_CASE, GREEN_APPLE, RED_APPLE, SNAKE_HEAD, SNAKE_BODY, WALL
 )
-from src.config import CELL_SIZE
 
 
 class Object(ABC):
+    cell_size = _cfg["cell_size"]
+
     def __init__(self, board: list[list[int]]) -> None:
         super().__init__()
         self.game_board = board
@@ -45,10 +46,10 @@ class Apple(Object, ABC):
 
     def draw(self, screen):
         apple_rect = pygame.Rect(
-            int(self.pos.x * CELL_SIZE),
-            int(self.pos.y * CELL_SIZE),
-            CELL_SIZE,
-            CELL_SIZE
+            int(self.pos.x * self.cell_size),
+            int(self.pos.y * self.cell_size),
+            self.cell_size,
+            self.cell_size
         )
         screen.blit(self.image, apple_rect)
 
@@ -61,7 +62,7 @@ class GreenApple(Apple):
         if self.interface:
             image = pygame.image.load(
                 'graphics/green_apple.png').convert_alpha()
-            self.image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
+            self.image = pygame.transform.scale(image, (self.cell_size, self.cell_size))
 
 
 class RedApple(Apple):
@@ -71,4 +72,4 @@ class RedApple(Apple):
         self.interface = interface
         if self.interface:
             image = pygame.image.load('graphics/red_apple.png').convert_alpha()
-            self.image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
+            self.image = pygame.transform.scale(image, (self.cell_size, self.cell_size))

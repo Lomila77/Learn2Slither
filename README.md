@@ -66,3 +66,4 @@ Après l'entraînement, les fichiers suivants sont générés dans `weights/` :
 - **Échap** : Quitter la partie
 - **Mode IA** : Automatique
   - Appuyer sur n'importe quelles touches pour accelerer le rendue
+#TODO: rajouter le mode p pour activer et desactiver le mode step by step

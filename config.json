@@ -1,18 +1,21 @@
 {
     "save_as": "exploration",
     "save_in": "./weights/exploration/",
-    "load_data_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_config.json",
-    "load_weights_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_weights.pck",
+    "load_data_from": "weights/exploration/10*10_epochs_50000_exploration_config.json",
+    "load_weights_from": "weights/exploration/10*10_epochs_50000_exploration_weights.pck",
     "training_mode": true,
     "load_checkpoint": false,
     "ai_mode": false,
-    "map_shape": [40, 40],
+    "map_shape": [20, 40],
     "learning_rate": 0.9,
     "epsilon_greedy": 0.8,
     "force_exploration": false,
-    "epochs": 15000,
+    "epochs": 10000,
     "cell_size": 40,
     "framerate": 60,
-    "speed": 150,
-    "training_speed": 0
+    "step_by_step": false,
+    "interface": false,
+    "terminal": true,
+    "interface_speed": 1,
+    "terminal_speed": 0
 }
