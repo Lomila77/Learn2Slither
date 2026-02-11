@@ -226,7 +226,6 @@ class Snake(Object):
         self.update_max_length()
 
     def eat(self, nutrient: int = 0):
-        print(f"Snack {nutrient}")
         self.growth_effect += nutrient
         if self.interface:
             self.play_crunch_sound()

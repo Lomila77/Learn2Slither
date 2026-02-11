@@ -45,6 +45,8 @@ class Board:
             self.total_epochs = _cfg["epochs"]
             self.epochs = _cfg["epochs"]
             print("MODE TRAINING")
+            if not _cfg["terminal"]:
+                print("Display disabled")
         elif self.ai_player:
             if not self.load_checkpoint:
                 raise ValueError("Need checkpoint for ai player")
@@ -98,7 +100,6 @@ class Board:
                     terminal, action = self.snake.call_brain(
                         self.training_mode)
                     if terminal:
-                        print("TERMINAL")
                         self.game_over(losing_action=action)
                         continue
                     self.snake.move(action)
@@ -145,7 +146,6 @@ class Board:
                             terminal, action = self.snake.call_brain(
                                 self.training_mode)
                             if terminal:
-                                print("TERMINAL")
                                 self.game_over(losing_action=action)
                                 continue
                             self.snake.move(action)
@@ -171,7 +171,7 @@ class Board:
                     else:
                         self.clock.tick(self.terminal_speed)
         except KeyboardInterrupt:
-            self.game_over(True)
+            self.game_over(losing_action=None, finish=True)
 
     def draw_object(self):
         for apple in self.green_apple:
@@ -276,18 +276,19 @@ class Board:
         width_board = len(self.board[0])
         self.reset_training_counter()
         self.board = np.zeros_like(self.board)
-        print("Game reseting...")
         self.walls = self.create_wall()
         brain = self.snake.brain
         self.snake = self.create_snake(brain=brain)
         self.green_apple = self.create_green_apple()
         self.red_apple = self.create_red_apple()
         self.snake.brain.reset()
-        underline = "=" * width_board * 2
-        print(underline + "=" * 9 + underline)
-        print(underline + "=" * 9 + underline)
-        print("NEW GAME".center(
-            width_board * 2 * 2 + 9))
+        if self.terminal:
+            underline = "=" * width_board * 2
+            print(underline + "=" * 9 + underline)
+            print(underline + "=" * 9 + underline)
+            print("Game reseting...")
+            print("NEW GAME".center(
+                width_board * 2 * 2 + 9))
 
     def reset_training_counter(self):
         self.max_lengths.append(self.snake.max_length)
@@ -309,7 +310,7 @@ class Board:
         underline = "=" * width_board * symbols_len
         if self.training_mode:
             print(underline + "=" * len(separator) + underline)
-            print(f"EPOCHS: {self.epochs}".center(
+            print(f"REMAINING EPOCHS: {self.epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))
             if len(self.max_lengths) != 0:
                 print(f"MAX LENGTH REACH: {max(self.max_lengths)}".center(
@@ -358,16 +359,18 @@ class Board:
             print(line1 + separator + line2)
 
     def is_eating_body(self) -> bool:
-        if self.snake.get_head_position() in self.snake.body:
+        if self.snake.get_head_position() in self.snake.get_body_position():
             self.snake.body.pop(0)
             self.ate_himself_counter += 1
-            print("Snake ate himself !!! Feed your snake !")
+            if self.terminal:
+                print("Snake ate himself !!! Feed your snake !")
             return True
         return False
 
     def is_snake_too_short(self) -> bool:
         if self.snake.get_length() < 2:
-            print("Snake too short...")
+            if self.terminal:
+                print("Snake too short...")
             return True
         return False
 
@@ -375,7 +378,8 @@ class Board:
         head = self.snake.get_head_position()
         for wall in self.walls:
             if head.x == wall.x and head.y == wall.y:
-                print("Snake is gone, good bye snaky snakie")
+                if self.terminal:
+                    print("Snake is gone, good bye snaky snakie")
                 self.hit_wall_counter += 1
                 return True
         return False
@@ -427,8 +431,9 @@ class Board:
                     snake_sizes=self.max_lengths,
                     name=get_name(epochs, "object_graph")
                 )
-                print("\n=== GAME OVER ===")
-                print(f"Length: {self.snake.get_length()}")
+                if self.terminal:
+                    print("\n=== GAME OVER ===")
+                    print(f"Length: {self.snake.get_length()}")
                 if self.interface:
                     pygame.quit()
                 sys.exit()
@@ -438,12 +443,14 @@ class Board:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
                 self.green_apple_counter += 1
-                print("Snake ate yummy green apple ! Happy snake !")
+                if self.terminal:
+                    print("Snake ate yummy green apple ! Happy snake !")
         for apple in self.red_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
                 self.red_apple_counter += 1
-                print("Snake ate an horrible red apple... Poor snake...")
+                if self.terminal:
+                    print("Snake ate an horrible red apple... Poor snake...")
 
 
 if __name__ == "__main__":
