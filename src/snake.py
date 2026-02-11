@@ -253,17 +253,25 @@ class Snake(Object):
         ]
         return x_axis, y_axis
 
-    def call_brain(self, training: bool = False):
+    def call_brain(
+        self,
+        training: bool = False,
+        trunc: bool = False,
+        trunc_limits: list[int] = []
+    ):
         x_axis, y_axis = self.watch()
         shape = self.game_board.shape
-        if shape[0] > 10 or shape[1] > 10:
+        if trunc:
             head = self.get_head_position()
             height, width = shape
+            limit_h, limit_w = trunc_limits
 
-            start_row = max(0, min(height - 10, int(head.y) - 5))
-            start_col = max(0, min(width - 10, int(head.x) - 5))
-            end_row = start_row + 10
-            end_col = start_col + 10
+            start_row = max(
+                0, min(height - limit_h, int(head.y) - limit_h // 2))
+            start_col = max(
+                0, min(width - limit_w, int(head.x) - limit_w // 2))
+            end_row = start_row + limit_h
+            end_col = start_col + limit_w
             local_board = self.game_board[start_row:end_row, start_col:end_col]
 
             local_body = [

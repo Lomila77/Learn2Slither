@@ -2,6 +2,7 @@ import os
 import pygame
 import time
 import sys
+from tqdm import tqdm
 from pygame.math import Vector2
 import numpy as np
 from src.brain import Brain
@@ -33,6 +34,8 @@ class Board:
         self.training_mode = _cfg["training_mode"]
         self.ai_player = _cfg["ai_mode"]
         self.load_checkpoint = _cfg["load_checkpoint"]
+        self.trunc_vision = False
+        self.trunc_limits = []
         if self.training_mode:
             if self.ai_player:
                 raise ValueError(
@@ -51,6 +54,12 @@ class Board:
             if not self.load_checkpoint:
                 raise ValueError("Need checkpoint for ai player")
             print("MODE AI PLAYER")
+            if _cfg["map_shape"] != data["shape"]:
+                self.trunc_vision: bool = True
+                self.trunc_limits: list[int] = data["shape"]
+                print(
+                    "Checkpoint loaded are not trained on map size."
+                    + "Truncate vision on checkpoint.")
         else:
             print("MODE MANUAL")
         self.interface = _cfg["interface"]
@@ -70,6 +79,9 @@ class Board:
         self.terminal = _cfg["terminal"]
         if self.terminal:
             self.terminal_speed = _cfg["terminal_speed"]
+        else:
+            self.progression = tqdm(
+                total=self.total_epochs, desc="Steps", unit="step")
         self.step_by_step = _cfg["step_by_step"]
 
         self.max_lengths: list[int] = []
@@ -98,7 +110,10 @@ class Board:
                         self.game_over(losing_action=None)
                     self.check_collectible()
                     terminal, action = self.snake.call_brain(
-                        self.training_mode)
+                        self.training_mode,
+                        self.trunc_vision,
+                        self.trunc_limits
+                    )
                     if terminal:
                         self.game_over(losing_action=action)
                         continue
@@ -144,7 +159,10 @@ class Board:
                                         self.snake.move(LEFT)
                         elif self.training_mode:
                             terminal, action = self.snake.call_brain(
-                                self.training_mode)
+                                self.training_mode,
+                                self.trunc_vision,
+                                self.trunc_limits
+                            )
                             if terminal:
                                 self.game_over(losing_action=action)
                                 continue
@@ -155,7 +173,10 @@ class Board:
                                 time.sleep(self.terminal_speed / 1000)
                         else:
                             _, action = self.snake.call_brain(
-                                self.training_mode)
+                                self.training_mode,
+                                self.trunc_vision,
+                                self.trunc_limits
+                            )
                             self.snake.move(action)
                         self.movement_counter += 1
                     self.check_collectible()
@@ -391,7 +412,11 @@ class Board:
         return False
 
     def last_action(self, losing_action: Vector2):
-        self.snake.call_brain(self.training_mode)
+        self.snake.call_brain(
+            self.training_mode,
+            self.trunc_vision,
+            self.trunc_limits
+        )
         self.snake.move(losing_action)
         self.is_eating_body()
         self.is_hitting_wall()
@@ -411,6 +436,8 @@ class Board:
             if losing_action:
                 self.last_action(losing_action)
             self.epochs -= 1
+            if not self.terminal and self.progression is not None:
+                self.progression.update(1)
             if self.epochs > 0 and not finish:
                 self.reset()
             else:
