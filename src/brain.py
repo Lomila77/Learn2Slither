@@ -55,7 +55,7 @@ class Brain:
         self.prev_reward: int = 0
         self.prev_terminal: bool = False
         self.lr = _cfg["learning_rate"]
-        self.epsilon_greedy = 0.1
+        self.epsilon_greedy = _cfg["epsilon_greedy"]
 
     def get_reward(
         self,
@@ -76,11 +76,6 @@ class Brain:
         elif id == GREEN_APPLE:
             return +15  # +10 ?
         elif id == SNAKE_BODY:
-            # Si ce n'est pas le dernier element du corps
-            # Le dernier elements du corps bougera avec l'action
-            # if not head_pos + action == pos[-1]:
-            #     self.prev_terminal = True
-            #     return -11
             self.prev_terminal = True
             return -10
         elif id == WALL:
@@ -107,10 +102,15 @@ class Brain:
     def take_action(self, state):
         if uniform(0, 1) < self.epsilon_greedy:
             if self.force_exploration:
-                action = min(
-                    enumerate(self.q_table[state]),
-                    key=lambda x: abs(x[1])
-                )[0]
+                zero_actions = [
+                    idx for idx, value in enumerate(self.q_table[state])
+                    if value == 0
+                ]
+                if zero_actions:
+                    action = zero_actions[randint(0, len(zero_actions) - 1)]
+                else:
+                    action = randint(0, 3)
+
             else:
                 action = randint(0, 3)
         else:
@@ -151,10 +151,8 @@ class Brain:
                 prev_reward=self.prev_reward,
                 q_sa=max(self.q_table[state])
             )
-        action_index: int = self.take_action(state)
-        reward: int = self.get_reward(
-            x_axis, y_axis, pos, self.actions[action_index])
+        self.prev_action: int = self.take_action(state)
+        self.prev_reward: int = self.get_reward(
+            x_axis, y_axis, pos, self.actions[self.prev_action])
         self.prev_state = state
-        self.prev_action = action_index
-        self.prev_reward = reward
-        return self.prev_terminal, self.actions[action_index]
+        return self.prev_terminal, self.actions[self.prev_action]
