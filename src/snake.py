@@ -20,6 +20,7 @@ from src.utils import (
 )
 
 
+# TODO: Attention a la direction
 class Snake(Object):
 
     def __init__(
@@ -98,7 +99,6 @@ class Snake(Object):
             )
         else:
             self.brain = brain
-        self.direction = self.brain.actions[randint(0, 3)]
 
         for _ in range(2):
             last_pos = self.body[-1]
@@ -120,6 +120,7 @@ class Snake(Object):
         for i, body in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
             draw_position_on_board(self.game_board, body, id)
+        self.direction = self.body[0] - self.body[1]
         self.growth_effect = -1
         self.max_length = self.get_length()
 

@@ -18,6 +18,7 @@ from src.utils import (
 )
 
 
+# TODO: Changer la gestion des states
 class Brain:
     def __init__(
         self,
@@ -120,18 +121,54 @@ class Brain:
         return action
 
     def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
-        def get_obj(array: list[int]):
+    # TODO: avoir une gestion de state comme cela:
+        # premiere serie pour detecter un danger a proximite directe
+        def get_obj(array: list[int], name: str):
             for i, obj in enumerate(array):
-                if i == len(array) - 1:
-                    return (i, np.float64(WALL))
-                if obj != EMPTY_CASE:
-                    return (i, obj)
+                if i == 0:
+                    if obj == WALL or obj == SNAKE_BODY:
+                        danger = ("close_danger_" + name, True)
+                    else:
+                        danger = ("close_danger_" + name, False)
+                    if obj == GREEN_APPLE:
+                        reward = ("close_reward_" + name, True)
+                    else:
+                        reward = ("close_reward_" + name, False)
+                    if obj == RED_APPLE:
+                        punish = ("close_punish_" + name, True)
+                    else:
+                        punish = ("close_punish_" + name, False)
+                break
+            for i, obj in enumerate(array):
+                if obj == GREEN_APPLE:
+                    green_apple: tuple = ("green_apple_on_" + name, True)
+                    break
+                if i == len(array) - 1 and obj != GREEN_APPLE:
+                    green_apple: tuple = ("green_apple_on_" + name, False)
+            for i, obj in enumerate(array):
+                if obj == RED_APPLE:
+                    red_apple = ("red_apple_on_" + name, True)
+                    break
+                if i == len(array) - 1 and obj != RED_APPLE:
+                    red_apple: tuple = ("red_apple_on_" + name, False)
+            return (danger, green_apple, red_apple, reward, punish)
+        # def get_obj(array: list[int]):
+        #     for i, obj in enumerate(array):
+        #         if i == len(array) - 1:
+        #             return (i, np.float64(WALL))
+        #         if obj != EMPTY_CASE:
+        #             return (i, obj)
         axis = y_axis[:int(pos.y)]
-        top = get_obj(axis[:: -1])
-        bot = get_obj(y_axis[int(pos.y) + 1:])
+        top = get_obj(axis[:: -1], "top")
+        bot = get_obj(y_axis[int(pos.y) + 1:], "bot")
         axis = x_axis[:int(pos.x)]
-        left = get_obj(axis[:: -1])
-        right = get_obj(x_axis[int(pos.x) + 1:])
+        left = get_obj(axis[:: -1], "left")
+        right = get_obj(x_axis[int(pos.x) + 1:], "right")
+        print("NEW Q_TABLES")
+        print(top)
+        print(bot)
+        print(left)
+        print(right)
         return (top, bot, left, right)
 
     def call_brain(
@@ -152,7 +189,9 @@ class Brain:
                 q_sa=max(self.q_table[state])
             )
         self.prev_action: int = self.take_action(state)
-        self.prev_reward: int = self.get_reward(
-            x_axis, y_axis, pos, self.actions[self.prev_action])
+        print(f"FUTUR ACTION: {self.prev_action}")
+        if not self.prev_terminal:
+            self.prev_reward: int = self.get_reward(
+                x_axis, y_axis, pos, self.actions[self.prev_action])
         self.prev_state = state
         return self.prev_terminal, self.actions[self.prev_action]

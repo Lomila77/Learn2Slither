@@ -32,6 +32,7 @@ class Board:
             raise ValueError("Too small, higher than 10 pls")
 
         self.training_mode = _cfg["training_mode"]
+        self.save = _cfg["save_training"]
         self.ai_player = _cfg["ai_mode"]
         self.load_checkpoint = _cfg["load_checkpoint"]
         self.trunc_vision = False
@@ -79,11 +80,11 @@ class Board:
         self.terminal = _cfg["terminal"]
         if self.terminal:
             self.terminal_speed = _cfg["terminal_speed"]
-        else:
+        elif not self.terminal and self.training_mode:
             self.progression = tqdm(
                 total=self.total_epochs, desc="Steps", unit="step")
-        self.step_by_step = _cfg["step_by_step"]
-
+        self.step_by_step: bool = _cfg["step_by_step"]
+        self.game_over_msg: str = ""
         self.max_lengths: list[int] = []
         self.movements: list[int] = []
         self.green_apples_ate: list[int] = []
@@ -108,6 +109,7 @@ class Board:
                 if self.training_mode and not self.interface:
                     if self.is_finished():
                         self.game_over(losing_action=None)
+                        continue
                     self.check_collectible()
                     terminal, action = self.snake.call_brain(
                         self.training_mode,
@@ -126,14 +128,14 @@ class Board:
                 elif self.interface:
                     for event in pygame.event.get():
                         if self.is_finished():
-                            self.game_over()
-                        #self.check_collectible()
+                            self.game_over(losing_action=None)
+                            continue
                         if event.type == pygame.QUIT:
                             self.quit()
                         if (event.type == pygame.KEYDOWN) and (
                             event.key == pygame.K_ESCAPE
                         ):
-                            self.game_over(finish=True)
+                            self.game_over(losing_action=None, finish=True)
                         if (event.type == pygame.KEYDOWN) and (
                             event.key == pygame.K_p
                         ):
@@ -144,7 +146,8 @@ class Board:
                                 self.snake.move(self.snake.direction)
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_ESCAPE:
-                                    self.game_over()
+                                    self.game_over(losing_action=None)
+                                    continue
                                 if event.key == pygame.K_UP:
                                     if self.snake.direction.y != 1:
                                         self.snake.move(UP)
@@ -165,6 +168,8 @@ class Board:
                             )
                             if terminal:
                                 self.game_over(losing_action=action)
+                                if self.step_by_step:
+                                    input()
                                 continue
                             self.snake.move(action)
                             if self.step_by_step:
@@ -306,8 +311,8 @@ class Board:
         if self.terminal:
             underline = "=" * width_board * 2
             print(underline + "=" * 9 + underline)
+            print("\n\n")
             print(underline + "=" * 9 + underline)
-            print("Game reseting...")
             print("NEW GAME".center(
                 width_board * 2 * 2 + 9))
 
@@ -330,6 +335,11 @@ class Board:
         snake_vision = self.snake.vision()
         underline = "=" * width_board * symbols_len
         if self.training_mode:
+
+            print(underline + "=" * len(separator) + underline)
+            print(f"REMAINING EPOCHS: {self.epochs}".center(
+                width_board * symbols_len * 2 + len(separator)))
+            print
             print(underline + "=" * len(separator) + underline)
             print(f"REMAINING EPOCHS: {self.epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))
@@ -384,14 +394,14 @@ class Board:
             self.snake.body.pop(0)
             self.ate_himself_counter += 1
             if self.terminal:
-                print("Snake ate himself !!! Feed your snake !")
+                self.game_over_msg = "Snake ate himself !!! Feed your snake !"
             return True
         return False
 
     def is_snake_too_short(self) -> bool:
         if self.snake.get_length() < 2:
             if self.terminal:
-                print("Snake too short...")
+                self.game_over_msg = "Snake too short..."
             return True
         return False
 
@@ -400,7 +410,7 @@ class Board:
         for wall in self.walls:
             if head.x == wall.x and head.y == wall.y:
                 if self.terminal:
-                    print("Snake is gone, good bye snaky snakie")
+                    self.game_over_msg = "Snake is gone, good bye snaky snakie"
                 self.hit_wall_counter += 1
                 return True
         return False
@@ -412,11 +422,13 @@ class Board:
         return False
 
     def last_action(self, losing_action: Vector2):
+        # self.tmp_reward = self.snake.brain.prev_reward
         self.snake.call_brain(
             self.training_mode,
             self.trunc_vision,
             self.trunc_limits
         )
+        # self.snake.brain.prev_reward = self.punition
         self.snake.move(losing_action)
         self.is_eating_body()
         self.is_hitting_wall()
@@ -429,6 +441,7 @@ class Board:
 
     def game_over(self, losing_action: Vector2, finish: bool = False):
         if self.interface and not self.training_mode:
+            print(self.game_over_msg)
             print("\n=== GAME OVER ===")
             print(f"Length: {self.snake.get_length()}")
             self.quit()
@@ -436,6 +449,9 @@ class Board:
             if losing_action:
                 self.last_action(losing_action)
             self.epochs -= 1
+            print("\n=== GAME OVER ===")
+            print(self.game_over_msg)
+            print(f"Length: {self.snake.get_length()}")
             if not self.terminal and self.progression is not None:
                 self.progression.update(1)
             if self.epochs > 0 and not finish:
@@ -445,22 +461,20 @@ class Board:
                 epochs = self.total_epochs - self.epochs
                 if self.load_checkpoint:
                     epochs += self.previous_epochs
-                save_data(epochs, self.snake.brain.q_table)
-                draw_step_graph(
-                    epochs=self.total_epochs,
-                    nb_steps=self.movements,
-                    name=get_name(epochs, "step_graph")
-                )
-                draw_object_graph(
-                    epochs=self.total_epochs,
-                    nb_green_apples_ate=self.green_apples_ate,
-                    nb_red_apples_ate=self.red_apples_ate,
-                    snake_sizes=self.max_lengths,
-                    name=get_name(epochs, "object_graph")
-                )
-                if self.terminal:
-                    print("\n=== GAME OVER ===")
-                    print(f"Length: {self.snake.get_length()}")
+                if self.save:
+                    save_data(epochs, self.snake.brain.q_table)
+                    draw_step_graph(
+                        epochs=self.total_epochs,
+                        nb_steps=self.movements,
+                        name=get_name(epochs, "step_graph")
+                    )
+                    draw_object_graph(
+                        epochs=self.total_epochs,
+                        nb_green_apples_ate=self.green_apples_ate,
+                        nb_red_apples_ate=self.red_apples_ate,
+                        snake_sizes=self.max_lengths,
+                        name=get_name(epochs, "object_graph")
+                    )
                 if self.interface:
                     pygame.quit()
                 sys.exit()

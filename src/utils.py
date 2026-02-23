@@ -179,7 +179,7 @@ def load_data():
 
 
 def print_q_table(q_table: dict[tuple]):
-    def format_state(state, width):
+    def format_state(state, value, width):
         labels = [
             DIRECTIONS_ICON[0],
             DIRECTIONS_ICON[1],
@@ -187,22 +187,11 @@ def print_q_table(q_table: dict[tuple]):
             DIRECTIONS_ICON[3]
         ]
         parts = []
-        for (dist, obj), label in zip(state, labels):
-            sym = SYMBOLS.get(obj, "?")
-            parts.append(f"{label} : ({dist} - {sym})".center(width))
-        return " | ".join(parts)
-
-    def format_action(values, width):
-        labels = [
-            DIRECTIONS_ICON[0],
-            DIRECTIONS_ICON[1],
-            DIRECTIONS_ICON[2],
-            DIRECTIONS_ICON[3]
-        ]
-        parts = []
-        for value, label in zip(values, labels):
-            parts.append(f"{label} :  {value:.2f}  ".center(width))
-        return " | ".join(parts)
+        for direction, value, label in zip(state, value, labels):
+            danger, green_apple, red_apple, reward, punish = direction
+            sym = lambda x: "✔️" if x else "✖️"
+            parts.append(f"{label} : 🟩/🌊-{sym(danger[1])} | 🍏-{sym(green_apple[1])} | 🍎-{sym(red_apple[1])} | 🎁-{sym(reward[1])} | 🚫-{sym(punish[1])} ||\t {label} : {value}\n".center(width))
+        return "".join(parts)
 
     header_state = "STATE".ljust(40)
     header_actions = " ".join(f"{name:^10}" for name in [
@@ -217,12 +206,9 @@ def print_q_table(q_table: dict[tuple]):
     width = 10
     new_states = 0
     for state, values in q_table.items():
-        # if not all(v == 0 for v in values):
         if 0 not in values:
-            state_str = format_state(state, width)
-            actions_str = format_action(values, width)
-            # actions_str = " | ".join(f"{float(v):.2f}" for v in values)
-            print(f"{state_str}\n{actions_str}")
+            state_str = format_state(state, values, width)
+            print(f"{state_str}")
             print("---------------------------------------------------------")
         else:
             new_states += 1
