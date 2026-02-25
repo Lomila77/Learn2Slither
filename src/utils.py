@@ -37,9 +37,6 @@ SYMBOLS = {
     6: '  ',
 }
 
-with open("config.json", "r") as f:
-    _cfg = json.load(f)
-
 
 def draw_position_on_board(board: list[list], pos: Vector2, id: int):
     board[int(pos.y)][int(pos.x)] = id
@@ -59,12 +56,16 @@ def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
     return random.choice(valid_positions)
 
 
-def get_name(epochs, add_to_name: str):
-    shape = _cfg["map_shape"]
-    shape = f"{shape[0]}*{shape[1]}_"
+def get_name(
+    epochs: int,
+    add_to_name: str,
+    map_shape: list,
+    save_as: str,
+    save_in: str
+):
+    shape = f"{map_shape[0]}*{map_shape[1]}_"
     epoch = f"epochs_{epochs}_"
-    filename = f"{_cfg['save_as']}_"
-    return _cfg["save_in"] + shape + epoch + filename + add_to_name
+    return save_in + shape + epoch + save_as + add_to_name
 
 
 def smooth(values: list[int], window=200):
@@ -150,36 +151,46 @@ def draw_object_graph(
     plt.close(fig)
 
 
-def load_q_table():
-    with open(_cfg["load_weights_from"], "rb") as f:
+def load_q_table(filename: str):
+    with open(filename, "rb") as f:
         q_table = pickle.load(f)
     return q_table
 
 
-def save_data(epochs: int, q_table):
+def save_data(
+    epochs: int,
+    q_table: tuple,
+    map_shape: list[int],
+    learning_rate: float,
+    epsilon_greedy: float,
+    force_exploration: bool,
+    name: str
+):
 
     data: dict = {
-        "shape": _cfg["map_shape"],
+        "shape": map_shape,
         "epochs": epochs,
         "q_table_len": len(q_table),
-        "learning_rate": _cfg["learning_rate"],
-        "epsilon_greedy": _cfg["epsilon_greedy"],
-        "force_exploration": _cfg["force_exploration"]
+        "learning_rate": learning_rate,
+        "epsilon_greedy": epsilon_greedy,
+        "force_exploration": force_exploration
     }
-    with open(get_name(epochs, "weights") + ".pck", "wb") as f:
+    with open(name + "_weights" + ".pck", "wb") as f:
         pickle.dump(q_table, f)
-    with open(get_name(epochs, "config") + ".json", "w") as f:
+    with open(name + "_config" + ".json", "w") as f:
         json.dump(data, f)
 
 
-def load_data():
-    with open(_cfg["load_data_from"], "r") as f:
+def load_data(filename: str):
+    with open(filename, "r") as f:
         data = json.load(f)
     return data
 
 
 def print_q_table(q_table: dict[tuple]):
     def format_state(state, value, width):
+        def sym(val: bool) -> str:
+            return "✔️" if val else "✖️"
         labels = [
             DIRECTIONS_ICON[0],
             DIRECTIONS_ICON[1],
@@ -189,8 +200,17 @@ def print_q_table(q_table: dict[tuple]):
         parts = []
         for direction, value, label in zip(state, value, labels):
             danger, green_apple, red_apple, reward, punish = direction
-            sym = lambda x: "✔️" if x else "✖️"
-            parts.append(f"{label} : 🟩/🌊-{sym(danger[1])} | 🍏-{sym(green_apple[1])} | 🍎-{sym(red_apple[1])} | 🎁-{sym(reward[1])} | 🚫-{sym(punish[1])} ||\t {label} : {value}\n".center(width))
+            part = f"{label} : 🟩/🌊-{sym(danger[1])}"
+            part += f" | 🍏-{sym(green_apple[1])}"
+            part += f" | 🍎-{sym(red_apple[1])}"
+            part += f" | 🎁-{sym(reward[1])}"
+            part += f" | 🚫-{sym(punish[1])}"
+            ecart = " " if 0 < value < 10 else ""
+            color = "\033[92m" if value > 0 else "\033[91m"
+            val = f"{color}{value:.3f}\033[0m"
+            part += f" ||\t {label} : {ecart}{val}\n"
+            part.center(width)
+            parts.append(part)
         return "".join(parts)
 
     header_state = "STATE".ljust(40)
@@ -216,6 +236,8 @@ def print_q_table(q_table: dict[tuple]):
 
 
 if __name__ == "__main__":
+    with open("config.json", "r") as f:
+        _cfg = json.load(f)
     with open(_cfg["load_weights_from"], "rb") as f:
         q_table = pickle.load(f)
     print_q_table(q_table)

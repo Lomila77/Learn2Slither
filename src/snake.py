@@ -1,6 +1,5 @@
 import pygame
 import numpy as np
-from random import randint
 from pygame.math import Vector2
 from src.brain import Brain
 from src.object import Object
@@ -20,17 +19,32 @@ from src.utils import (
 )
 
 
-# TODO: Attention a la direction
 class Snake(Object):
 
     def __init__(
         self,
         board: list[list[int]],
+        cell_size: int,
+        interface: bool,
         brain: Brain | None = None,
-        interface: bool = True,
-        load_checkpoint: bool = False
+        **kwargs
     ) -> None:
-        self.game_board = board
+        """
+        Paramètres
+        ----------
+        board : Grille du jeu.
+        cell_size : Taille d'une case en pixels.
+        brain : Brain | None, Cerveau existant. Si None, un Brain est créé.
+
+        kwargs
+        ------
+        load_weights_from : Chemin vers les poids à charger pour le Brain.
+        learning_rate : Taux d'apprentissage du Brain (par défaut 0.9).
+        epsilon_greedy : Taux d'exploration epsilon‑greedy (par défaut 0.1).
+        force_exploration : Force l’exploration même si la politique est
+        connue (par défaut False).
+        """
+        super().__init__(board, cell_size)
         self.interface = interface
         if self.interface:
             self.image_body_bl = pygame.transform.scale(
@@ -84,7 +98,6 @@ class Snake(Object):
             self.game_board,
             [WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD]
         )
-        # Store positions as (x, y) = (col, row)
         self.body: list[Vector2] = [Vector2(col, row)]
 
         x_axis, y_axis = self.watch()
@@ -94,8 +107,7 @@ class Snake(Object):
                 self.get_head_position(),
                 x_axis,
                 y_axis,
-                self,
-                load_checkpoint
+                **kwargs
             )
         else:
             self.brain = brain
@@ -104,7 +116,6 @@ class Snake(Object):
             last_pos = self.body[-1]
             for action in self.brain.actions:
                 body = last_pos + action
-                # Board is indexed as board[row][col] = board[y][x]
                 if (
                     0 < body.x < self.game_board.shape[1] and
                     0 < body.y < self.game_board.shape[0] and
@@ -120,6 +131,7 @@ class Snake(Object):
         for i, body in enumerate(self.body):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
             draw_position_on_board(self.game_board, body, id)
+
         self.direction = self.body[0] - self.body[1]
         self.growth_effect = -1
         self.max_length = self.get_length()
@@ -257,42 +269,8 @@ class Snake(Object):
     def call_brain(
         self,
         training: bool = False,
-        trunc: bool = False,
-        trunc_limits: list[int] = []
     ):
         x_axis, y_axis = self.watch()
-        shape = self.game_board.shape
-        if trunc:
-            head = self.get_head_position()
-            height, width = shape
-            limit_h, limit_w = trunc_limits
-
-            start_row = max(
-                0, min(height - limit_h, int(head.y) - limit_h // 2))
-            start_col = max(
-                0, min(width - limit_w, int(head.x) - limit_w // 2))
-            end_row = start_row + limit_h
-            end_col = start_col + limit_w
-            local_board = self.game_board[start_row:end_row, start_col:end_col]
-
-            local_body = [
-                Vector2(pos.x - start_col, pos.y - start_row)
-                for pos in self.body
-            ]
-            local_head = local_body[0]
-
-            local_x_axis = list(local_board[int(local_head.y)])
-            local_y_axis = [
-                local_board[row][int(local_head.x)] for row in range(10)
-            ]
-
-            action = self.brain.call_brain(
-                local_x_axis,
-                local_y_axis,
-                local_body,
-                training=training
-            )
-        else:
-            action = self.brain.call_brain(
-                x_axis, y_axis, self.get_position(), training=training)
+        action = self.brain.call_brain(
+            x_axis, y_axis, self.get_position(), training=training)
         return action

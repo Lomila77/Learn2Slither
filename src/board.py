@@ -1,13 +1,18 @@
 import os
+from tabnanny import check
+import tkinter as tk
+from typing import Any
 import pygame
+import pygame_menu
 import time
 import sys
+from tkinter import filedialog
+from pygame_menu.widgets.core.widget import Widget
 from tqdm import tqdm
 from pygame.math import Vector2
 import numpy as np
 from src.brain import Brain
 from src.utils import (
-    _cfg,
     UP, DOWN, LEFT, RIGHT, SYMBOLS, DIRECTIONS_ICON,
     draw_step_graph, draw_object_graph,
     get_name, save_data, load_data, GREEN_APPLE, RED_APPLE, WALL
@@ -18,81 +23,260 @@ from src.snake import Snake
 
 #TODO: can activate interface on training mode ?
 class Board:
-    def __init__(self) -> None:
-        shape = _cfg["map_shape"]
-        if len(shape) != 2:
-            raise ValueError("Need to be a 2d map")
-        if not isinstance(
-            shape[0], (int, np.int64)
-        ) or not isinstance(
-            shape[1], (int, np.int64)
-        ):
-            raise ValueError("Shape must be 2d int array")
-        if shape[0] < 10 and shape[1] < 10:
-            raise ValueError("Too small, higher than 10 pls")
+    training_mode: bool = False
+    save: bool = False
+    ai_player: bool = False
+    load_checkpoint: bool = False
+    force_exploration: bool = False
+    interface: bool = False
+    terminal: bool = False
+    step_by_step: bool = False
 
-        self.training_mode = _cfg["training_mode"]
-        self.save = _cfg["save_training"]
-        self.ai_player = _cfg["ai_mode"]
-        self.load_checkpoint = _cfg["load_checkpoint"]
-        self.trunc_vision = False
-        self.trunc_limits = []
-        if self.training_mode:
+    save_as: str = "experiments_00"
+    save_in: str = "./weights/casual/"
+    load_data_from: str = ""
+    load_weights_from: str = ""
+
+    epochs: int = 1000
+    total_epochs: int = 0
+    previous_epoch: int = 0
+    learning_rate: float = 0.9
+    epsilon_greedy: float = 0.1
+
+    map_shape: list[int] = [10, 10]
+    cell_size: int = 40
+    framerate: int = 60
+    interface_speed: int = 200
+    terminal_speed: int = 75
+
+    def __init__(self) -> None:
+        pygame.mixer.pre_init(44100, -16, 2, 512)
+        pygame.init()
+        self.screen_menu = pygame.display.set_mode(
+            Vector2(800, 800))
+        self.create_menu()
+        self.menu.mainloop(self.screen_menu)
+
+    def __setattr(self, name: str, caster: type) -> None:
+        def setter(val: str) -> None:
+            if val == "":
+                return
+            setattr(self, name, caster(val))
+        return setter
+
+    def create_menu(self):
+        def select_load_data_file() -> None:
+            root = tk.Tk()
+            root.withdraw()
+            file_path = filedialog.askopenfilename(
+                title="Select data file",
+                filetypes=[("JSON files", "*.json")]
+            )
+            if file_path:
+                self.load_data_from = file_path
+                load_data_from.set_value(file_path)
+
+        def select_load_weights_file() -> None:
+            root = tk.Tk()
+            root.withdraw()
+            file_path = filedialog.askopenfilename(
+                title="Select weights file",
+                filetypes=[("Pickle files", "*.pck")]
+            )
+            if file_path:
+                self.load_weights_from = file_path
+                load_weights_from.set_value(file_path)
+
+        def toggle_widgets(show: bool, widgets: list[Widget]):
+            if show:
+                for w in widgets:
+                    w.show()
+            else:
+                for w in widgets:
+                    w.hide()
+
+        def set_height(val: str):
+            if val == "" or not val.isdigit():
+                return
+            nb = int(val)
+            if nb < 10 or nb > 30:
+                # TODO: print message
+                return
+            self.map_shape[0] = int(val)
+
+        def set_width(val: str):
+            if val == "" or not val.isdigit():
+                return
+            nb = int(val)
+            if nb < 10 or nb > 30:
+                # TODO: print message
+                return
+            self.map_shape[1] = int(val)
+
+        def set_training_mode(_, val: bool):
+            self.training_mode = val
+            training.set_value(val)
+            if self.training_mode:
+                set_ai_mode('No', 0)
+                set_interface('No', 0)
+            else:
+                set_save_training('No', 0)
+            toggle_widgets(self.training_mode, training_widgets)
+
+        def set_save_training(_, val: bool):
+            self.save = val
+            save.set_value(val)
+            toggle_widgets(self.save, save_widgets)
+
+        def set_ai_mode(_, val: bool):
+            self.ai_player = val
+            print(f"val: {val}\n\n")
+            ai_mode.set_value(val)
             if self.ai_player:
-                raise ValueError(
-                    "AI player not allowed during training."
-                    + "Check json config file")
-            if self.load_checkpoint:
-                data = load_data()
-                shape = data["shape"]
-                self.previous_epochs = data["epochs"]
-            self.total_epochs = _cfg["epochs"]
-            self.epochs = _cfg["epochs"]
-            print("MODE TRAINING")
-            if not _cfg["terminal"]:
-                print("Display disabled")
-        elif self.ai_player:
-            if not self.load_checkpoint:
-                raise ValueError("Need checkpoint for ai player")
-            print("MODE AI PLAYER")
-            if _cfg["map_shape"] != data["shape"]:
-                self.trunc_vision: bool = True
-                self.trunc_limits: list[int] = data["shape"]
-                print(
-                    "Checkpoint loaded are not trained on map size."
-                    + "Truncate vision on checkpoint.")
-        else:
-            print("MODE MANUAL")
-        self.interface = _cfg["interface"]
+                set_training_mode('No', 0)
+                set_interface('Yes', 1)
+                interface.is_selectable = False
+                checkpoint.is_selectable = False
+                set_load_checkpoint('Yes', 1)
+                checkpoint.show()
+            else:
+                checkpoint.hide()
+                checkpoint.is_selectable = True
+                set_load_checkpoint('No', 0)
+                interface.is_selectable = True
+
+        def set_load_checkpoint(_, val: bool):
+            self.load_checkpoint = val
+            checkpoint.set_value(val)
+            toggle_widgets(
+                self.load_checkpoint, checkpoint_widgets)
+
+        def set_force_exploration(_, val: bool):
+            self.force_exploration = val
+            force_exploration.set_value(val)
+
+        def set_step_by_step(_, val: bool):
+            self.step_by_step = val
+            step_by_step.set_value(val)
+
+        def set_interface(_, val: bool):
+            self.interface = val
+            interface.set_value(val)
+            toggle_widgets(self.interface, interface_widgets)
+
+        def set_terminal(_, val: bool):
+            self.terminal = val
+            terminal.set_value(val)
+            toggle_widgets(self.terminal, [terminal_speed])
+
+        self.menu = pygame_menu.Menu(
+            "SNAKE", 800, 800, theme=pygame_menu.themes.THEME_GREEN,
+            columns=2, rows=12
+        )
+        self.menu.add.text_input(
+            'Height :  ', default='10', onchange=set_height)
+        self.menu.add.text_input(
+            'Width :  ', default='10', onchange=set_width)
+        training: Widget = self.menu.add.selector(
+            'Training :  ', [('No', 0), ('Yes', 1)], onchange=set_training_mode)
+        save: Widget = self.menu.add.selector(
+            'Save :  ', [('No', 0), ('Yes', 1)], onchange=set_save_training)
+        save_as: Widget = self.menu.add.text_input(
+            'Save as :  ', default='experimentation_00',
+            onchange=self.__setattr('save_as', str))
+        save_in: Widget = self.menu.add.text_input(
+            'Save in :  ', default='./weights/casual/',
+            onchange=self.__setattr('save_in', str))
+        epochs: Widget = self.menu.add.text_input(
+            'Epochs :  ', default='1000', onchange=self.__setattr('epochs', int))
+        learning_rate: Widget = self.menu.add.text_input(
+            'Learning Rate :  ', default='0.9',
+            onchange=self.__setattr('learning_rate', float))
+        epsilon_greedy: Widget = self.menu.add.text_input(
+            'Epsilon Greedy :  ', default='0.1',
+            onchange=self.__setattr('epsilon_greedy', float))
+        force_exploration: Widget = self.menu.add.selector(
+            'Force Exploration :  ', [('No', 0), ('Yes', 1)],
+            onchange=set_force_exploration)
+        checkpoint: Widget = self.menu.add.selector(
+            'Load checkpoint :  ', [('No', 0), ('Yes', 1)],
+            onchange=set_load_checkpoint)
+        load_data_from: Widget = self.menu.add.text_input(
+            'Load data from :  ', default='',
+            onchange=self.__setattr('load_data_from', str))
+        load_data_from.readonly = True
+        data_button = self.menu.add.button('Browse', select_load_data_file)
+        load_weights_from: Widget = self.menu.add.text_input(
+            'Load weights from :  ', default='',
+            onchange=self.__setattr('load_weights_from', str))
+        load_weights_from.readonly = True
+        weights_button = self.menu.add.button('Browse', select_load_weights_file)
+        ai_mode: Widget = self.menu.add.selector(
+            'AI Mode :  ', [('No', 0), ('Yes', 1)], onchange=set_ai_mode)
+        interface: Widget = self.menu.add.selector(
+            'Interface :  ', [('No', 0), ('Yes', 1)], onchange=set_interface)
+        cell_size: Widget = self.menu.add.text_input(
+            'Cell size :  ', default='40',
+            onchange=self.__setattr('cell_size', int))
+        framerate: Widget = self.menu.add.text_input(
+            'Framerate :  ', default='60',
+            onchange=self.__setattr('framerate', int))
+        interface_speed: Widget = self.menu.add.text_input(
+            'Interface Speed :  ', default='200',
+            onchange=self.__setattr('interface_speed', int))
+        terminal: Widget = self.menu.add.selector(
+            'Terminal :  ', [('No', 0), ('Yes', 1)], onchange=set_terminal)
+        terminal_speed: Widget = self.menu.add.text_input(
+            'Terminal Speed :  ', default='75',
+            onchange=self.__setattr('terminal_speed', int))
+        step_by_step: Widget = self.menu.add.selector(
+            'Step by step :  ', [('No', 0), ('Yes', 1)],
+            onchange=set_step_by_step)
+        #TODO : enlever le widget de texte et modifier la variable directement depuis le bouton
+        checkpoint_widgets: list[Widget] = [
+            load_data_from, load_weights_from, data_button, weights_button]
+        save_widgets: list[Widget] = [
+            save_as, save_in]
+        training_widgets: list[Widget] = [
+            checkpoint, save, epochs, learning_rate,
+            epsilon_greedy, force_exploration, step_by_step]
+        interface_widgets: list[Widget] = [
+            cell_size, framerate, interface_speed]
+        toggle_widgets(
+            False,
+            training_widgets + interface_widgets + checkpoint_widgets + [
+                terminal_speed] + save_widgets
+        )
+        self.menu.add.button('Play', self.start_game)
+        self.menu.add.button('Quit', pygame_menu.events.EXIT)
+
+    def start_game(self):
+        self.total_epochs = self.epochs
+        if self.load_checkpoint:
+            data = load_data(self.load_data_from)
+            self.previous_epochs = data["epochs"]
         if self.interface:
-            self.cell_size = _cfg["cell_size"]
-            self.framerate = _cfg["framerate"]
-            self.interface_speed = _cfg["interface_speed"]
-            pygame.mixer.pre_init(44100, -16, 2, 512)
-            pygame.init()
             self.screen = pygame.display.set_mode(
-                Vector2(self.cell_size * shape[1], self.cell_size * shape[0]))
+                Vector2(
+                    self.cell_size * self.map_shape[1],
+                    self.cell_size * self.map_shape[0]
+                ))
             self.clock = pygame.time.Clock()
             pygame.time.set_timer(pygame.USEREVENT, self.interface_speed)
             self.background_color = (175, 215, 70)
             self.game_font = pygame.font.Font(
                 'font/PoetsenOne-Regular.ttf', 25)
-        self.terminal = _cfg["terminal"]
-        if self.terminal:
-            self.terminal_speed = _cfg["terminal_speed"]
-        elif not self.terminal and self.training_mode:
+        if not self.terminal and self.training_mode:
             self.progression = tqdm(
                 total=self.total_epochs, desc="Steps", unit="step")
-        self.step_by_step: bool = _cfg["step_by_step"]
         self.game_over_msg: str = ""
         self.max_lengths: list[int] = []
         self.movements: list[int] = []
         self.green_apples_ate: list[int] = []
         self.red_apples_ate: list[int] = []
-        self.board = np.zeros((shape[0], shape[1]))
+        self.board = np.zeros((self.map_shape[0], self.map_shape[1]))
         self.walls: list = self.create_wall()
-        self.snake: Snake = self.create_snake(
-            load_checkpoint=self.load_checkpoint)
+        self.snake: Snake = self.create_snake()
         self.green_apple: list = self.create_green_apple()
         self.red_apple: list = self.create_red_apple()
         self.green_apple_counter: int = 0
@@ -100,6 +284,7 @@ class Board:
         self.hit_wall_counter: int = 0
         self.ate_himself_counter: int = 0
         self.movement_counter: int = 0
+        self.play()
 
     def play(self):
         try:
@@ -112,10 +297,7 @@ class Board:
                         continue
                     self.check_collectible()
                     terminal, action = self.snake.call_brain(
-                        self.training_mode,
-                        self.trunc_vision,
-                        self.trunc_limits
-                    )
+                        self.training_mode)
                     if terminal:
                         self.game_over(losing_action=action)
                         continue
@@ -162,10 +344,7 @@ class Board:
                                         self.snake.move(LEFT)
                         elif self.training_mode:
                             terminal, action = self.snake.call_brain(
-                                self.training_mode,
-                                self.trunc_vision,
-                                self.trunc_limits
-                            )
+                                self.training_mode)
                             if terminal:
                                 self.game_over(losing_action=action)
                                 if self.step_by_step:
@@ -178,10 +357,7 @@ class Board:
                                 time.sleep(self.terminal_speed / 1000)
                         else:
                             _, action = self.snake.call_brain(
-                                self.training_mode,
-                                self.trunc_vision,
-                                self.trunc_limits
-                            )
+                                self.training_mode)
                             self.snake.move(action)
                         self.movement_counter += 1
                     self.check_collectible()
@@ -282,7 +458,7 @@ class Board:
     def create_green_apple(self, nb: int = 2):
         apples: list = []
         for _ in range(nb):
-            apple = GreenApple(self.board, self.interface)
+            apple = GreenApple(self.board, self.cell_size, self.interface)
             self.board[int(apple.pos.y)][int(apple.pos.x)] = GREEN_APPLE
             apples.append(apple)
         return apples
@@ -290,13 +466,22 @@ class Board:
     def create_red_apple(self, nb: int = 1):
         apples: list = []
         for _ in range(nb):
-            apple = RedApple(self.board, self.interface)
+            apple = RedApple(self.board, self.cell_size, self.interface)
             self.board[int(apple.pos.y)][int(apple.pos.x)] = RED_APPLE
             apples.append(apple)
         return apples
 
-    def create_snake(self, brain: Brain = None, load_checkpoint: bool = False):
-        return Snake(self.board, brain, self.interface, load_checkpoint)
+    def create_snake(self, brain: Brain = None):
+        return Snake(
+            self.board,
+            self.cell_size,
+            self.interface,
+            brain,
+            load_weights_from=self.load_weights_from,
+            learning_rate=self.learning_rate,
+            epsilon_greedy=self.epsilon_greedy,
+            force_exploration=self.force_exploration
+        )
 
     def reset(self):
         width_board = len(self.board[0])
@@ -328,7 +513,7 @@ class Board:
     def display(self):
         if not self.terminal:
             return
-        os.system('clear')
+        #os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
@@ -422,13 +607,7 @@ class Board:
         return False
 
     def last_action(self, losing_action: Vector2):
-        # self.tmp_reward = self.snake.brain.prev_reward
-        self.snake.call_brain(
-            self.training_mode,
-            self.trunc_vision,
-            self.trunc_limits
-        )
-        # self.snake.brain.prev_reward = self.punition
+        self.snake.call_brain(self.training_mode)
         self.snake.move(losing_action)
         self.is_eating_body()
         self.is_hitting_wall()
@@ -442,6 +621,7 @@ class Board:
     def game_over(self, losing_action: Vector2, finish: bool = False):
         if self.interface and not self.training_mode:
             print(self.game_over_msg)
+            self.game_over_msg = ""
             print("\n=== GAME OVER ===")
             print(f"Length: {self.snake.get_length()}")
             self.quit()
@@ -449,9 +629,11 @@ class Board:
             if losing_action:
                 self.last_action(losing_action)
             self.epochs -= 1
-            print("\n=== GAME OVER ===")
-            print(self.game_over_msg)
-            print(f"Length: {self.snake.get_length()}")
+            if self.interface:
+                print("\n=== GAME OVER ===")
+                print(self.gamestep_graph_over_msg)
+                self.game_over_msg = ""
+                print(f"Length: {self.snake.get_length()}")
             if not self.terminal and self.progression is not None:
                 self.progression.update(1)
             if self.epochs > 0 and not finish:
@@ -462,18 +644,32 @@ class Board:
                 if self.load_checkpoint:
                     epochs += self.previous_epochs
                 if self.save:
-                    save_data(epochs, self.snake.brain.q_table)
+                    save_data(
+                        epochs,
+                        self.snake.brain.q_table,
+                        self.map_shape,
+                        self.learning_rate,
+                        self.epsilon_greedy,
+                        self.force_exploration,
+                        get_name(
+                            epochs, "", self.map_shape,
+                            self.save_as, self.save_in)
+                    )
                     draw_step_graph(
                         epochs=self.total_epochs,
                         nb_steps=self.movements,
-                        name=get_name(epochs, "step_graph")
+                        name=get_name(
+                            epochs, "step_graph", self.map_shape,
+                            self.save_as, self.save_in)
                     )
                     draw_object_graph(
                         epochs=self.total_epochs,
                         nb_green_apples_ate=self.green_apples_ate,
                         nb_red_apples_ate=self.red_apples_ate,
                         snake_sizes=self.max_lengths,
-                        name=get_name(epochs, "object_graph")
+                        name=get_name(
+                            epochs, "object_graph", self.map_shape,
+                            self.save_as, self.save_in)
                     )
                 if self.interface:
                     pygame.quit()

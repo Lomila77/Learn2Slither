@@ -2,6 +2,8 @@ numpy
 pytest
 flake8
 pygame
+pygame-menu
 seaborn
 pandas
 tqdm
+tkinter

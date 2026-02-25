@@ -1,9 +1,7 @@
-from typing import Any
 import numpy as np
 from random import randint, uniform
 from pygame.math import Vector2
 from src.utils import (
-    _cfg,
     UP,
     DOWN,
     LEFT,
@@ -26,8 +24,10 @@ class Brain:
         starting_position: Vector2,
         x_axis: list[int],
         y_axis: list[int],
-        snake: Any,
-        q_table: bool = False
+        load_weights_from: str = "",
+        learning_rate: float = 0.9,
+        epsilon_greedy: float = 0.1,
+        force_exploration: bool = False,
     ) -> None:
         self.actions = [
             UP,
@@ -36,12 +36,13 @@ class Brain:
             RIGHT
         ]
         self.q_table: tuple = {}
-        if q_table:
-            self.q_table = load_q_table()
-        self.lr = _cfg["learning_rate"]
+        if load_weights_from != "":
+            self.q_table = load_q_table(load_weights_from)
+        self.init_learning_rate = learning_rate
+        self.lr = learning_rate
         self.gamma = self.lr - 0.01
-        self.epsilon_greedy: float = _cfg["epsilon_greedy"]
-        self.force_exploration = _cfg["force_exploration"]
+        self.epsilon_greedy: float = epsilon_greedy
+        self.force_exploration = force_exploration
         self.prev_state: tuple = None
         self.prev_action: int = 0
         self.prev_reward: int = 0
@@ -55,8 +56,7 @@ class Brain:
         self.prev_action: int = 0
         self.prev_reward: int = 0
         self.prev_terminal: bool = False
-        self.lr = _cfg["learning_rate"]
-        self.epsilon_greedy = _cfg["epsilon_greedy"]
+        self.lr = self.init_learning_rate
 
     def get_reward(
         self,
@@ -121,8 +121,6 @@ class Brain:
         return action
 
     def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
-    # TODO: avoir une gestion de state comme cela:
-        # premiere serie pour detecter un danger a proximite directe
         def get_obj(array: list[int], name: str):
             for i, obj in enumerate(array):
                 if i == 0:
@@ -152,23 +150,12 @@ class Brain:
                 if i == len(array) - 1 and obj != RED_APPLE:
                     red_apple: tuple = ("red_apple_on_" + name, False)
             return (danger, green_apple, red_apple, reward, punish)
-        # def get_obj(array: list[int]):
-        #     for i, obj in enumerate(array):
-        #         if i == len(array) - 1:
-        #             return (i, np.float64(WALL))
-        #         if obj != EMPTY_CASE:
-        #             return (i, obj)
         axis = y_axis[:int(pos.y)]
         top = get_obj(axis[:: -1], "top")
         bot = get_obj(y_axis[int(pos.y) + 1:], "bot")
         axis = x_axis[:int(pos.x)]
         left = get_obj(axis[:: -1], "left")
         right = get_obj(x_axis[int(pos.x) + 1:], "right")
-        print("NEW Q_TABLES")
-        print(top)
-        print(bot)
-        print(left)
-        print(right)
         return (top, bot, left, right)
 
     def call_brain(
@@ -189,7 +176,6 @@ class Brain:
                 q_sa=max(self.q_table[state])
             )
         self.prev_action: int = self.take_action(state)
-        print(f"FUTUR ACTION: {self.prev_action}")
         if not self.prev_terminal:
             self.prev_reward: int = self.get_reward(
                 x_axis, y_axis, pos, self.actions[self.prev_action])
