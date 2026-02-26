@@ -1,13 +1,14 @@
 import os
-from tabnanny import check
+from re import escape
 import tkinter as tk
-from typing import Any
 import pygame
 import pygame_menu
 import time
 import sys
 from tkinter import filedialog
 from pygame_menu.widgets.core.widget import Widget
+from pygame_menu.widgets.widget.frame import Frame
+from pygame_menu.locals import ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT
 from tqdm import tqdm
 from pygame.math import Vector2
 import numpy as np
@@ -21,9 +22,9 @@ from src.object import GreenApple, RedApple
 from src.snake import Snake
 
 
-#TODO: can activate interface on training mode ?
 class Board:
-    training_mode: bool = False
+    running: bool = False
+    training_mode: bool = True
     save: bool = False
     ai_player: bool = False
     load_checkpoint: bool = False
@@ -33,7 +34,7 @@ class Board:
     step_by_step: bool = False
 
     save_as: str = "experiments_00"
-    save_in: str = "./weights/casual/"
+    save_in: str = ""
     load_data_from: str = ""
     load_weights_from: str = ""
 
@@ -55,101 +56,112 @@ class Board:
         self.screen_menu = pygame.display.set_mode(
             Vector2(800, 800))
         self.create_menu()
-        self.menu.mainloop(self.screen_menu)
+        self.menu_loop()
 
     def __setattr(self, name: str, caster: type) -> None:
         def setter(val: str) -> None:
             if val == "":
                 return
+            if caster == int or caster == float and not val.isdigit:
+                return
             setattr(self, name, caster(val))
         return setter
 
     def create_menu(self):
-        def select_load_data_file() -> None:
+        def select_file(title: str, filetypes: list[tuple]):
             root = tk.Tk()
             root.withdraw()
             file_path = filedialog.askopenfilename(
-                title="Select data file",
-                filetypes=[("JSON files", "*.json")]
+                title=title,
+                filetypes=filetypes
             )
+            return file_path
+
+        def select_folder():
+            root = tk.Tk()
+            root.withdraw()
+            dir_path = filedialog.askdirectory(
+                title="Select a folder to save your training"
+            )
+            if dir_path == "":
+                return
+            self.save_in = dir_path
+            save_in.set_title(f"Save in : {dir_path[:13]}...")
+
+        def select_load_data_file() -> None:
+            file_path = select_file(
+                "Select data file", [("JSON files", "*.json")])
             if file_path:
                 self.load_data_from = file_path
-                load_data_from.set_value(file_path)
+                load_data_from.set_title("Load : " + file_path[:13] + "...")
 
         def select_load_weights_file() -> None:
-            root = tk.Tk()
-            root.withdraw()
-            file_path = filedialog.askopenfilename(
-                title="Select weights file",
-                filetypes=[("Pickle files", "*.pck")]
-            )
+            file_path = select_file(
+                "Select weights file", [("Pickle files", "*.pck")])
             if file_path:
                 self.load_weights_from = file_path
-                load_weights_from.set_value(file_path)
+                load_weights_from.set_title("Load : " + file_path[:13] + "...")
 
-        def toggle_widgets(show: bool, widgets: list[Widget]):
-            if show:
-                for w in widgets:
-                    w.show()
-            else:
-                for w in widgets:
-                    w.hide()
+        def toggle_widgets(show: bool, widgets: Frame):
+            print(f"SHOW: {bool(show)}")
+            print(widgets)
+            widgets.show() if show else widgets.hide()
+
+        def set_size(val: str, idx: int):
+            if val == "" or not val.isdigit():
+                return
+            nb = int(val)
+            if nb < 10 or nb > 30:
+                # TODO: print message
+                return
+            self.map_shape[idx] = nb
 
         def set_height(val: str):
-            if val == "" or not val.isdigit():
-                return
-            nb = int(val)
-            if nb < 10 or nb > 30:
-                # TODO: print message
-                return
-            self.map_shape[0] = int(val)
+            set_size(val, 0)
 
         def set_width(val: str):
-            if val == "" or not val.isdigit():
-                return
-            nb = int(val)
-            if nb < 10 or nb > 30:
-                # TODO: print message
-                return
-            self.map_shape[1] = int(val)
+            set_size(val, 1)
 
-        def set_training_mode(_, val: bool):
-            self.training_mode = val
-            training.set_value(val)
-            if self.training_mode:
-                set_ai_mode('No', 0)
-                set_interface('No', 0)
+        def set_mode(_, val: int):
+            if val == 0:
+                self.training_mode = True
+                self.ai_player = False
+            elif val == 1:
+                self.ai_player = True
+                self.training_mode = False
             else:
+                self.training_mode = False
+                self.ai_player = False
+            mode.set_value(val)
+            if self.training_mode:
+                set_interface('No', 0)
+                interface.is_selectable = True
+                set_load_checkpoint('No', 0)
+                checkpoint.is_selectable = True
+                toggle_widgets(True, training_frame)
+            elif self.ai_player:
+                toggle_widgets(False, training_frame)
+                set_interface('Yes', 1)
+                interface.is_selectable = False
                 set_save_training('No', 0)
-            toggle_widgets(self.training_mode, training_widgets)
+                checkpoint.is_selectable = False
+                set_load_checkpoint('Yes', 1)
+                checkpoint_frame.show()
+            else:
+                toggle_widgets(False, training_frame)
+                set_interface('Yes', 1)
+                interface.is_selectable = False
 
         def set_save_training(_, val: bool):
             self.save = val
             save.set_value(val)
-            toggle_widgets(self.save, save_widgets)
-
-        def set_ai_mode(_, val: bool):
-            self.ai_player = val
-            print(f"val: {val}\n\n")
-            ai_mode.set_value(val)
-            if self.ai_player:
-                set_training_mode('No', 0)
-                set_interface('Yes', 1)
-                interface.is_selectable = False
-                checkpoint.is_selectable = False
-                set_load_checkpoint('Yes', 1)
-                checkpoint.show()
-            else:
-                checkpoint.hide()
-                checkpoint.is_selectable = True
-                set_load_checkpoint('No', 0)
-                interface.is_selectable = True
+            toggle_widgets(self.save, save_frame)
 
         def set_load_checkpoint(_, val: bool):
             self.load_checkpoint = val
             checkpoint.set_value(val)
             toggle_widgets(
-                self.load_checkpoint, checkpoint_widgets)
+                self.load_checkpoint, checkpoint_frame)
 
         def set_force_exploration(_, val: bool):
             self.force_exploration = val
@@ -162,99 +174,162 @@ class Board:
         def set_interface(_, val: bool):
             self.interface = val
             interface.set_value(val)
-            toggle_widgets(self.interface, interface_widgets)
+            toggle_widgets(self.interface, interface_frame)
 
         def set_terminal(_, val: bool):
             self.terminal = val
             terminal.set_value(val)
-            toggle_widgets(self.terminal, [terminal_speed])
+            toggle_widgets(self.terminal, terminal_speed)
 
         self.menu = pygame_menu.Menu(
-            "SNAKE", 800, 800, theme=pygame_menu.themes.THEME_GREEN,
-            columns=2, rows=12
-        )
-        self.menu.add.text_input(
-            'Height :  ', default='10', onchange=set_height)
-        self.menu.add.text_input(
-            'Width :  ', default='10', onchange=set_width)
-        training: Widget = self.menu.add.selector(
-            'Training :  ', [('No', 0), ('Yes', 1)], onchange=set_training_mode)
+            "SNAKE", 800, 800, theme=pygame_menu.themes.THEME_GREEN)
+        white = (255, 255, 255)
+
+        # Map Shape Frame
+        map_shape_frame = self.menu.add.frame_v(
+            200, 110, border_width=2, border_color=white)
+        map_shape_frame.pack(self.menu.add.text_input(
+            'Height : ', default='10', onchange=set_height, maxchar=2),
+            align=ALIGN_CENTER)
+        map_shape_frame.pack(self.menu.add.text_input(
+            'Width : ', default='10', onchange=set_width, maxchar=2),
+            align=ALIGN_CENTER)
+
+        # Training Frame
+        mode: Widget = self.menu.add.selector(
+            'Mode : ', [('Training', 0), ('AI', 1), ('Manuel', 2)],
+            onchange=set_mode)
+        training_frame = self.menu.add.frame_v(
+            550, 310, border_width=2, border_color=white)
+
+        # Save Frame
         save: Widget = self.menu.add.selector(
-            'Save :  ', [('No', 0), ('Yes', 1)], onchange=set_save_training)
+            'Save : ', [('No', 0), ('Yes', 1)], onchange=set_save_training)
+        save_frame = self.menu.add.frame_v(
+            550, 170, border_width=2, border_color=white)
+        save_frame.pack(
+            self.menu.add.label(title="Save : "), align=ALIGN_LEFT)
         save_as: Widget = self.menu.add.text_input(
-            'Save as :  ', default='experimentation_00',
+            'Save as : ', default='experimentation_00',
             onchange=self.__setattr('save_as', str))
-        save_in: Widget = self.menu.add.text_input(
-            'Save in :  ', default='./weights/casual/',
-            onchange=self.__setattr('save_in', str))
-        epochs: Widget = self.menu.add.text_input(
-            'Epochs :  ', default='1000', onchange=self.__setattr('epochs', int))
-        learning_rate: Widget = self.menu.add.text_input(
-            'Learning Rate :  ', default='0.9',
-            onchange=self.__setattr('learning_rate', float))
-        epsilon_greedy: Widget = self.menu.add.text_input(
-            'Epsilon Greedy :  ', default='0.1',
-            onchange=self.__setattr('epsilon_greedy', float))
+        save_in_frame = self.menu.add.frame_h(
+            534, 60)
+        save_in: Widget = self.menu.add.label(
+            'Save in : ', selectable=True, max_char=30)
+        save_in_frame.pack(save_in, align=ALIGN_LEFT)
+        save_in_frame.pack(self.menu.add.button(
+            'Browse', select_folder, 
+            border_width=1, border_color=white),
+            align=ALIGN_RIGHT)
+
+        save_frame.pack(save_as, align=ALIGN_LEFT)
+        save_frame.pack(save_in_frame, align=ALIGN_LEFT)
+        training_frame.pack(save, align=ALIGN_LEFT)
+
+        training_frame.pack(self.menu.add.text_input(
+            'Epochs : ', default='1000',
+            onchange=self.__setattr('epochs', int)),
+            align=ALIGN_LEFT)
+        training_frame.pack(self.menu.add.text_input(
+            'Learning Rate : ', default='0.9',
+            onchange=self.__setattr('learning_rate', float)),
+            align=ALIGN_LEFT)
+        training_frame.pack(self.menu.add.text_input(
+            'Epsilon Greedy : ', default='0.1',
+            onchange=self.__setattr('epsilon_greedy', float)),
+            align=ALIGN_LEFT)
         force_exploration: Widget = self.menu.add.selector(
-            'Force Exploration :  ', [('No', 0), ('Yes', 1)],
+            'Force Exploration : ', [('No', 0), ('Yes', 1)],
             onchange=set_force_exploration)
+        training_frame.pack(force_exploration, align=ALIGN_LEFT)
+
+        # Checkpoint Frame
         checkpoint: Widget = self.menu.add.selector(
-            'Load checkpoint :  ', [('No', 0), ('Yes', 1)],
+            'Load checkpoint : ', [('No', 0), ('Yes', 1)],
             onchange=set_load_checkpoint)
-        load_data_from: Widget = self.menu.add.text_input(
-            'Load data from :  ', default='',
-            onchange=self.__setattr('load_data_from', str))
-        load_data_from.readonly = True
-        data_button = self.menu.add.button('Browse', select_load_data_file)
-        load_weights_from: Widget = self.menu.add.text_input(
-            'Load weights from :  ', default='',
-            onchange=self.__setattr('load_weights_from', str))
-        load_weights_from.readonly = True
-        weights_button = self.menu.add.button('Browse', select_load_weights_file)
-        ai_mode: Widget = self.menu.add.selector(
-            'AI Mode :  ', [('No', 0), ('Yes', 1)], onchange=set_ai_mode)
+        training_frame.pack(checkpoint, align=ALIGN_LEFT)
+        checkpoint_frame = self.menu.add.frame_v(
+            550, 180, border_width=2, border_color=white)
+        checkpoint_frame.pack(
+            self.menu.add.label(title="Checkpoint : "), align=ALIGN_LEFT)
+        load_data_frame = self.menu.add.frame_h(520, 60)
+        load_data_from: Widget = self.menu.add.label(
+            'Data : No file selected', selectable=True, max_char=30)
+        data_button = self.menu.add.button(
+            'Browse', select_load_data_file,
+            border_width=1, border_color=white)
+        load_data_frame.pack(
+            load_data_from, align=pygame_menu.locals.ALIGN_LEFT)
+        load_data_frame.pack(
+            data_button, align=pygame_menu.locals.ALIGN_RIGHT)
+        checkpoint_frame.pack(load_data_frame, align=ALIGN_LEFT)
+        load_weights_from: Widget = self.menu.add.label(
+            'Weights : No file selected', selectable=True, max_char=30)
+        weights_button = self.menu.add.button(
+            'Browse', select_load_weights_file,
+            border_width=1, border_color=white)
+        load_weights_frame = self.menu.add.frame_h(
+            520, 60)
+        load_weights_frame.pack(
+            load_weights_from, align=pygame_menu.locals.ALIGN_LEFT)
+        load_weights_frame.pack(
+            weights_button, align=pygame_menu.locals.ALIGN_RIGHT)
+        checkpoint_frame.pack(load_weights_frame, align=ALIGN_LEFT)
+
+        # Interface Frame
         interface: Widget = self.menu.add.selector(
-            'Interface :  ', [('No', 0), ('Yes', 1)], onchange=set_interface)
+            'Interface : ', [('No', 0), ('Yes', 1)], onchange=set_interface)
+        interface_frame = self.menu.add.frame_v(
+            550, 170, border_width=2, border_color=white)
         cell_size: Widget = self.menu.add.text_input(
-            'Cell size :  ', default='40',
+            'Cell size : ', default='40',
             onchange=self.__setattr('cell_size', int))
+        interface_frame.pack(cell_size, align=ALIGN_LEFT)
         framerate: Widget = self.menu.add.text_input(
-            'Framerate :  ', default='60',
+            'Framerate : ', default='60',
             onchange=self.__setattr('framerate', int))
+        interface_frame.pack(framerate, align=ALIGN_LEFT)
         interface_speed: Widget = self.menu.add.text_input(
-            'Interface Speed :  ', default='200',
+            'Interface Speed : ', default='200',
             onchange=self.__setattr('interface_speed', int))
+        interface_frame.pack(interface_speed, align=ALIGN_LEFT)
+
         terminal: Widget = self.menu.add.selector(
-            'Terminal :  ', [('No', 0), ('Yes', 1)], onchange=set_terminal)
+            'Terminal : ', [('No', 0), ('Yes', 1)], onchange=set_terminal)
         terminal_speed: Widget = self.menu.add.text_input(
-            'Terminal Speed :  ', default='75',
+            'Terminal Speed : ', default='75',
             onchange=self.__setattr('terminal_speed', int))
+
         step_by_step: Widget = self.menu.add.selector(
-            'Step by step :  ', [('No', 0), ('Yes', 1)],
+            'Step by step : ', [('No', 0), ('Yes', 1)],
             onchange=set_step_by_step)
-        #TODO : enlever le widget de texte et modifier la variable directement depuis le bouton
-        checkpoint_widgets: list[Widget] = [
-            load_data_from, load_weights_from, data_button, weights_button]
-        save_widgets: list[Widget] = [
-            save_as, save_in]
-        training_widgets: list[Widget] = [
-            checkpoint, save, epochs, learning_rate,
-            epsilon_greedy, force_exploration, step_by_step]
-        interface_widgets: list[Widget] = [
-            cell_size, framerate, interface_speed]
-        toggle_widgets(
-            False,
-            training_widgets + interface_widgets + checkpoint_widgets + [
-                terminal_speed] + save_widgets
-        )
-        self.menu.add.button('Play', self.start_game)
-        self.menu.add.button('Quit', pygame_menu.events.EXIT)
+        toggle_widgets(False, save_frame)
+        toggle_widgets(False, checkpoint_frame)
+        toggle_widgets(False, interface_frame)
+        toggle_widgets(False, terminal_speed)
+        button_frame = self.menu.add.frame_h(250, 80)
+        play = self.menu.add.button(
+            'Play', self.start_game, border_width=1, border_color=white)
+        quit = self.menu.add.button(
+            'Quit', pygame_menu.events.EXIT,
+            border_width=1, border_color=white)
+        button_frame.pack(play, align=ALIGN_RIGHT)
+        button_frame.pack(quit, align=ALIGN_LEFT)
+
+    def menu_loop(self):
+        while True:
+            self.menu.enable()
+            self.menu.mainloop(self.screen_menu)
 
     def start_game(self):
+        self.menu.disable()
         self.total_epochs = self.epochs
         if self.load_checkpoint:
-            data = load_data(self.load_data_from)
-            self.previous_epochs = data["epochs"]
+            if self.load_data_from != "":
+                data = load_data(self.load_data_from)
+                self.previous_epochs = data["epochs"]
+            else:
+                self.load_checkpoint = False
         if self.interface:
             self.screen = pygame.display.set_mode(
                 Vector2(
@@ -288,7 +363,8 @@ class Board:
 
     def play(self):
         try:
-            while True:
+            self.running = True
+            while self.running:
                 if self.terminal:
                     self.display()
                 if self.training_mode and not self.interface:
@@ -313,7 +389,7 @@ class Board:
                             self.game_over(losing_action=None)
                             continue
                         if event.type == pygame.QUIT:
-                            self.quit()
+                            self.running = False
                         if (event.type == pygame.KEYDOWN) and (
                             event.key == pygame.K_ESCAPE
                         ):
@@ -513,7 +589,7 @@ class Board:
     def display(self):
         if not self.terminal:
             return
-        #os.system('clear')
+        os.system('clear')
         separator = '    |    '
         symbols_len = 2
         width_board = len(self.board[0])
@@ -624,14 +700,14 @@ class Board:
             self.game_over_msg = ""
             print("\n=== GAME OVER ===")
             print(f"Length: {self.snake.get_length()}")
-            self.quit()
+            self.running = False
         elif self.training_mode:
             if losing_action:
                 self.last_action(losing_action)
             self.epochs -= 1
-            if self.interface:
+            if self.terminal:
                 print("\n=== GAME OVER ===")
-                print(self.gamestep_graph_over_msg)
+                print(self.game_over_msg)
                 self.game_over_msg = ""
                 print(f"Length: {self.snake.get_length()}")
             if not self.terminal and self.progression is not None:
@@ -671,9 +747,7 @@ class Board:
                             epochs, "object_graph", self.map_shape,
                             self.save_as, self.save_in)
                     )
-                if self.interface:
-                    pygame.quit()
-                sys.exit()
+                self.running = False
 
     def check_collectible(self):
         for apple in self.green_apple:

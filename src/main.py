@@ -4,7 +4,6 @@ import sys
 if __name__ == "__main__":
     #TODO: Take arguments form input or from json
     # try:
-        menu: bool = False
         if len(sys.argv) != 1:
             pass
         else:
