@@ -1,1 +1,0 @@
-{"shape": [10, 10], "epochs": 40000, "q_table_len": 7034, "learning_rate": 0.9, "epsilon_greedy": 0.9, "force_exploration": true}
