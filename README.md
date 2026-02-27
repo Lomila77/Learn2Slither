@@ -8,51 +8,30 @@ Jeu Snake avec agent d'apprentissage par renforcement utilisant Q-Learning.
 pip install -r requirements.txt
 ```
 
-## Configuration
+## Lancer le jeu
 
-Modifier le fichier `config.json` selon vos besoins :
+Vous pouvez lancer et configurer le jeu de 2 maniere differente, via le menu, ou via la CLI.
 
-```python
-{
-# Sauvegarde
-    "save_as": "exploration",     # Nom de l'entrainement specifique
-    "save_in": "./weights/exploration/",
-    "load_data_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_config.json",
-    "load_weights_from": "weights/force_exploration/10*10_epochs_40000_force_exploration_weights.pck",
-# Modes d'exécution
-  # Si tout est faux passe en mode manuel
-    "training_mode": true,        # True: entraînement, False: jeu
-    "load_checkpoint": false,     # Charger un modèle pré-entraîné
-    "ai_mode": false,             # True: IA joue, False: joueur humain
-# Paramètres d'entraînement
-    "map_shape": [40, 40],        # Taille de la grille
-    "learning_rate": 0.9,         # Taux d'apprentissage
-    "epsilon_greedy": 0.8,        # Exploration (0.0-1.0)
-    "force_exploration": false,   # True: choix inconnue, False: choix random
-    "epochs": 15000,              # Nombre d'époques
-# Paramètres visuels
-    "cell_size": 40,              # Taille des cellules
-    "framerate": 60,              # FPS
-    "speed": 150,                 # Vitesse de jeu (ms)
-    "training_speed": 0           # Vitesse d'entraînement (ms)
-}
+Afficher le menu avec la commande:
+```bash
+  python -m src.main    
+```
+
+Pour vous servir de la commande line vous pouvez afficher les options avec:
+```bash
+  python -m src.main --help
 ```
 
 ## Utilisation
 
-### Lancer le jeu
-```bash
-python -m src.board
-```
-
 ### Visualiser la Q-table
 ```bash
-python -m src.utils
+python -m src.utils <q-table_path>
 ```
 
 ## Résultats
 
-Après l'entraînement, les fichiers suivants sont générés dans `weights/` :
+Après l'entraînement, les fichiers suivants sont générés dans `save/` :
 
 - **Poids du modèle** : `.pck`
 - **Information de l'entraînement** : `.json`
@@ -66,4 +45,3 @@ Après l'entraînement, les fichiers suivants sont générés dans `weights/` :
 - **Échap** : Quitter la partie
 - **Mode IA** : Automatique
   - Appuyer sur n'importe quelles touches pour accelerer le rendue
-#TODO: rajouter le mode p pour activer et desactiver le mode step by step

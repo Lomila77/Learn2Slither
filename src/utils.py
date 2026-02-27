@@ -1,4 +1,5 @@
 import random
+import sys
 import pickle
 import json
 from pygame.math import Vector2
@@ -236,8 +237,14 @@ def print_q_table(q_table: dict[tuple]):
 
 
 if __name__ == "__main__":
-    with open("config.json", "r") as f:
-        _cfg = json.load(f)
-    with open(_cfg["load_weights_from"], "rb") as f:
-        q_table = pickle.load(f)
-    print_q_table(q_table)
+    try:
+        if len(sys.argv) != 2:
+            raise ValueError("Need weights file path")
+        file_path = sys.argv[1]
+        if file_path[-4:] != ".pck":
+            raise ValueError("Not a pickle file")
+        with open(file_path, "rb") as f:
+            q_table = pickle.load(f)
+        print_q_table(q_table)
+    except Exception as e:
+        print(e)

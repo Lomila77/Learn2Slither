@@ -1,5 +1,4 @@
 import os
-from re import escape
 import tkinter as tk
 import pygame
 import pygame_menu
@@ -23,6 +22,7 @@ from src.snake import Snake
 
 
 class Board:
+    menu_error: bool = False
     running: bool = False
     training_mode: bool = True
     save: bool = False
@@ -34,12 +34,12 @@ class Board:
     step_by_step: bool = False
 
     save_as: str = "experiments_00"
-    save_in: str = ""
+    save_in: str = "/home/gcolomer/Documents/Learn2Slither/save"
     load_data_from: str = ""
     load_weights_from: str = ""
 
     epochs: int = 1000
-    total_epochs: int = 0
+    total_epochs: int = 1000
     previous_epoch: int = 0
     learning_rate: float = 0.9
     epsilon_greedy: float = 0.1
@@ -50,19 +50,41 @@ class Board:
     interface_speed: int = 200
     terminal_speed: int = 75
 
-    def __init__(self) -> None:
-        pygame.mixer.pre_init(44100, -16, 2, 512)
-        pygame.init()
-        self.screen_menu = pygame.display.set_mode(
-            Vector2(800, 800))
-        self.create_menu()
-        self.menu_loop()
+    def __init__(self, **kwargs) -> None:
+        if kwargs:
+            self.menu = None
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+                else:
+                    if key == "mode":
+                        if value == "training":
+                            self.training_mode = True
+                        elif value == "ai_player":
+                            self.ai_player = True
+                            self.interface = True
+                            self.load_checkpoint = True
+                        elif value == "manuel":
+                            self.training_mode = False
+                    else:
+                        raise ValueError(f"Warning: unknown argument {key}")
+            self.total_epochs = self.epochs
+            self.start_game()
+            self.play()
+
+        else:
+            pygame.mixer.pre_init(44100, -16, 2, 512)
+            pygame.init()
+            self.screen_menu = pygame.display.set_mode(
+                Vector2(800, 800))
+            self.create_menu()
+            self.menu_loop()
 
     def __setattr(self, name: str, caster: type) -> None:
         def setter(val: str) -> None:
             if val == "":
                 return
-            if caster == int or caster == float and not val.isdigit:
+            if (caster == int or caster == float) and not val.isdigit:
                 return
             setattr(self, name, caster(val))
         return setter
@@ -72,6 +94,7 @@ class Board:
             root = tk.Tk()
             root.withdraw()
             file_path = filedialog.askopenfilename(
+                initialdir="/home/gcolomer/Documents/Learn2Slither/save",
                 title=title,
                 filetypes=filetypes
             )
@@ -81,11 +104,12 @@ class Board:
             root = tk.Tk()
             root.withdraw()
             dir_path = filedialog.askdirectory(
+                initialdir="/home/gcolomer/Documents/Learn2Slither/save",
                 title="Select a folder to save your training"
             )
             if dir_path == "":
                 return
-            self.save_in = dir_path
+            self.save_in = dir_path + "/"
             save_in.set_title(f"Save in : {dir_path[:13]}...")
 
         def select_load_data_file() -> None:
@@ -103,18 +127,12 @@ class Board:
                 load_weights_from.set_title("Load : " + file_path[:13] + "...")
 
         def toggle_widgets(show: bool, widgets: Frame):
-            print(f"SHOW: {bool(show)}")
-            print(widgets)
             widgets.show() if show else widgets.hide()
 
         def set_size(val: str, idx: int):
             if val == "" or not val.isdigit():
                 return
-            nb = int(val)
-            if nb < 10 or nb > 30:
-                # TODO: print message
-                return
-            self.map_shape[idx] = nb
+            self.map_shape[idx] = int(val)
 
         def set_height(val: str):
             set_size(val, 0)
@@ -149,11 +167,18 @@ class Board:
                 checkpoint_frame.show()
             else:
                 toggle_widgets(False, training_frame)
+                set_load_checkpoint('No', 0)
+                toggle_widgets(False, checkpoint_frame)
                 set_interface('Yes', 1)
                 interface.is_selectable = False
 
+        def set_epochs(val: str):
+            if val != "" and val.isdigit():
+                self.epochs = int(val)
+                self.total_epochs = int(val)
+
         def set_save_training(_, val: bool):
-            self.save = val
+            self.save = bool(val)
             save.set_value(val)
             toggle_widgets(self.save, save_frame)
 
@@ -170,6 +195,12 @@ class Board:
         def set_step_by_step(_, val: bool):
             self.step_by_step = val
             step_by_step.set_value(val)
+            if self.step_by_step:
+                set_terminal("Yes", 1)
+                terminal.set_value(1)
+                terminal.is_selectable = False
+            else:
+                terminal.is_selectable = True
 
         def set_interface(_, val: bool):
             self.interface = val
@@ -200,7 +231,7 @@ class Board:
             'Mode : ', [('Training', 0), ('AI', 1), ('Manuel', 2)],
             onchange=set_mode)
         training_frame = self.menu.add.frame_v(
-            550, 310, border_width=2, border_color=white)
+            550, 355, border_width=2, border_color=white)
 
         # Save Frame
         save: Widget = self.menu.add.selector(
@@ -215,10 +246,11 @@ class Board:
         save_in_frame = self.menu.add.frame_h(
             534, 60)
         save_in: Widget = self.menu.add.label(
-            'Save in : ', selectable=True, max_char=30)
+            'Save in : /home/gcolom...',
+            selectable=True, max_char=30)
         save_in_frame.pack(save_in, align=ALIGN_LEFT)
         save_in_frame.pack(self.menu.add.button(
-            'Browse', select_folder, 
+            'Browse', select_folder,
             border_width=1, border_color=white),
             align=ALIGN_RIGHT)
 
@@ -228,7 +260,7 @@ class Board:
 
         training_frame.pack(self.menu.add.text_input(
             'Epochs : ', default='1000',
-            onchange=self.__setattr('epochs', int)),
+            onchange=set_epochs),
             align=ALIGN_LEFT)
         training_frame.pack(self.menu.add.text_input(
             'Learning Rate : ', default='0.9',
@@ -242,6 +274,10 @@ class Board:
             'Force Exploration : ', [('No', 0), ('Yes', 1)],
             onchange=set_force_exploration)
         training_frame.pack(force_exploration, align=ALIGN_LEFT)
+        step_by_step: Widget = self.menu.add.selector(
+            'Step by step : ', [('No', 0), ('Yes', 1)],
+            onchange=set_step_by_step)
+        training_frame.pack(step_by_step, align=ALIGN_LEFT)
 
         # Checkpoint Frame
         checkpoint: Widget = self.menu.add.selector(
@@ -299,10 +335,6 @@ class Board:
         terminal_speed: Widget = self.menu.add.text_input(
             'Terminal Speed : ', default='75',
             onchange=self.__setattr('terminal_speed', int))
-
-        step_by_step: Widget = self.menu.add.selector(
-            'Step by step : ', [('No', 0), ('Yes', 1)],
-            onchange=set_step_by_step)
         toggle_widgets(False, save_frame)
         toggle_widgets(False, checkpoint_frame)
         toggle_widgets(False, interface_frame)
@@ -318,18 +350,58 @@ class Board:
 
     def menu_loop(self):
         while True:
+            self.screen_menu = pygame.display.set_mode((800, 800))
+            self.menu_error = False
             self.menu.enable()
             self.menu.mainloop(self.screen_menu)
+            if not self.menu_error:
+                self.play()
+
+    def is_menu_error(self) -> bool:
+        if not (10 <= self.map_shape[0] <= 30) or not (
+                10 <= self.map_shape[1] <= 30
+        ):
+            print("Map shape must be greater than 9 and smaller than 31")
+            self.menu_error = True
+        if self.save and self.save_in == "":
+            print("Select folder to save your work")
+            self.menu_error = True
+        if self.training_mode:
+            if self.learning_rate == 0:
+                print("Learning rate can't be 0")
+                self.menu_error = True
+            if self.epsilon_greedy == 0:
+                print("Epsilon greedy can't be 0 for training")
+                self.menu_error = True
+            if self.total_epochs == 0:
+                print("Epochs must be greater than 0")
+                self.menu_error = True
+        if self.load_checkpoint:
+            if self.load_data_from == "" or self.load_weights_from == "":
+                print("No checkpoint selected")
+                self.menu_error = True
+        if self.interface:
+            if not 10 < self.cell_size < 80:
+                print("Cell size must be greater than 1 and smaller than 80")
+                self.menu_error = True
+            if self.framerate < 10 or self.framerate > 320:
+                print("Framerate must be greater than 10 and less than 320")
+                self.menu_error = True
+            if self.interface_speed < 50 or self.interface_speed > 300:
+                print("Framerate must be greater than 50 and less than 300")
+                self.menu_error = True
+        return self.menu_error
 
     def start_game(self):
-        self.menu.disable()
-        self.total_epochs = self.epochs
+        if self.menu is not None and self.is_menu_error():
+            return
+        self.epochs = self.total_epochs
+        if self.menu is not None:
+            self.menu.disable()
         if self.load_checkpoint:
-            if self.load_data_from != "":
-                data = load_data(self.load_data_from)
-                self.previous_epochs = data["epochs"]
-            else:
-                self.load_checkpoint = False
+            data = load_data(self.load_data_from)
+            self.previous_epochs = data["epochs"]
+        print(f"Interface = {self.interface}")
         if self.interface:
             self.screen = pygame.display.set_mode(
                 Vector2(
@@ -359,7 +431,6 @@ class Board:
         self.hit_wall_counter: int = 0
         self.ate_himself_counter: int = 0
         self.movement_counter: int = 0
-        self.play()
 
     def play(self):
         try:
@@ -735,7 +806,7 @@ class Board:
                         epochs=self.total_epochs,
                         nb_steps=self.movements,
                         name=get_name(
-                            epochs, "step_graph", self.map_shape,
+                            epochs, "_step_graph", self.map_shape,
                             self.save_as, self.save_in)
                     )
                     draw_object_graph(
@@ -744,7 +815,7 @@ class Board:
                         nb_red_apples_ate=self.red_apples_ate,
                         snake_sizes=self.max_lengths,
                         name=get_name(
-                            epochs, "object_graph", self.map_shape,
+                            epochs, "_object_graph", self.map_shape,
                             self.save_as, self.save_in)
                     )
                 self.running = False
@@ -765,6 +836,5 @@ class Board:
 
 
 if __name__ == "__main__":
-    #TODO: Take arguments form input or from json
     env = Board()
     env.play()
