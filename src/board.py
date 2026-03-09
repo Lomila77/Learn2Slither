@@ -34,7 +34,7 @@ class Board:
     step_by_step: bool = False
 
     save_as: str = "experiments_00"
-    save_in: str = "/home/gcolomer/Documents/Learn2Slither/save"
+    save_in: str = "/home/gcolomer/Documents/Learn2Slither/models"
     load_data_from: str = ""
     load_weights_from: str = ""
 
@@ -94,7 +94,7 @@ class Board:
             root = tk.Tk()
             root.withdraw()
             file_path = filedialog.askopenfilename(
-                initialdir="/home/gcolomer/Documents/Learn2Slither/save",
+                initialdir="/home/gcolomer/Documents/Learn2Slither/models",
                 title=title,
                 filetypes=filetypes
             )
@@ -104,7 +104,7 @@ class Board:
             root = tk.Tk()
             root.withdraw()
             dir_path = filedialog.askdirectory(
-                initialdir="/home/gcolomer/Documents/Learn2Slither/save",
+                initialdir="/home/gcolomer/Documents/Learn2Slither/models",
                 title="Select a folder to save your training"
             )
             if dir_path == "":
@@ -401,7 +401,6 @@ class Board:
         if self.load_checkpoint:
             data = load_data(self.load_data_from)
             self.previous_epochs = data["epochs"]
-        print(f"Interface = {self.interface}")
         if self.interface:
             self.screen = pygame.display.set_mode(
                 Vector2(

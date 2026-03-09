@@ -31,7 +31,7 @@ python -m src.utils <q-table_path>
 
 ## Résultats
 
-Après l'entraînement, les fichiers suivants sont générés dans `save/` :
+Après l'entraînement, les fichiers suivants sont générés dans `models/` :
 
 - **Poids du modèle** : `.pck`
 - **Information de l'entraînement** : `.json`

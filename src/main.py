@@ -19,7 +19,7 @@ def parse_arguments():
         help="Save as filename")
     parser.add_argument(
         "--save_in", type=str,
-        default="/home/gcolomer/Documents/Learn2Slither/save",
+        default="/home/gcolomer/Documents/Learn2Slither/models",
         help="Directory to save")
 
     parser.add_argument(
