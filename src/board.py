@@ -69,6 +69,9 @@ class Board:
                     else:
                         raise ValueError(f"Warning: unknown argument {key}")
             self.total_epochs = self.epochs
+            if self.interface:
+                pygame.mixer.pre_init(44100, -16, 2, 512)
+                pygame.init()
             self.start_game()
             self.play()
 
@@ -437,38 +440,29 @@ class Board:
             while self.running:
                 if self.terminal:
                     self.display()
-                if self.training_mode and not self.interface:
-                    if self.is_finished():
-                        self.game_over(losing_action=None)
-                        continue
-                    self.check_collectible()
+                if not self.ai_player and self.is_finished():
+                    self.game_over(losing_action=None)
+                    continue
+                self.check_collectible()
+                if self.training_mode or self.ai_player:
                     terminal, action = self.snake.call_brain(
                         self.training_mode)
                     if terminal:
                         self.game_over(losing_action=action)
                         continue
-                    self.snake.move(action)
-                    self.movement_counter += 1
+                    self.movement_counter += self.snake.move(action)
                     if self.step_by_step:
                         input()
                     elif self.terminal and self.terminal_speed != 0:
                         time.sleep(self.terminal_speed / 1000)
-                elif self.interface:
+                if self.interface:
                     for event in pygame.event.get():
-                        if self.is_finished():
-                            self.game_over(losing_action=None)
-                            continue
                         if event.type == pygame.QUIT:
                             self.running = False
                         if (event.type == pygame.KEYDOWN) and (
                             event.key == pygame.K_ESCAPE
                         ):
                             self.game_over(losing_action=None, finish=True)
-                        if (event.type == pygame.KEYDOWN) and (
-                            event.key == pygame.K_p
-                        ):
-                            self.step_by_step = (
-                                True if self.step_by_step else False)
                         if not self.ai_player and not self.training_mode:
                             if event.type == pygame.USEREVENT:
                                 self.snake.move(self.snake.direction)
@@ -488,36 +482,13 @@ class Board:
                                 if event.key == pygame.K_LEFT:
                                     if self.snake.direction.x != 1:
                                         self.snake.move(LEFT)
-                        elif self.training_mode:
-                            terminal, action = self.snake.call_brain(
-                                self.training_mode)
-                            if terminal:
-                                self.game_over(losing_action=action)
-                                if self.step_by_step:
-                                    input()
-                                continue
-                            self.snake.move(action)
-                            if self.step_by_step:
-                                input()
-                            elif self.terminal_speed != 0:
-                                time.sleep(self.terminal_speed / 1000)
-                        else:
-                            _, action = self.snake.call_brain(
-                                self.training_mode)
-                            self.snake.move(action)
-                        self.movement_counter += 1
-                    self.check_collectible()
                     self.screen.fill(self.background_color)
                     self.draw_grass()
                     self.draw_wall()
                     self.draw_object()
                     self.draw_score()
                     pygame.display.update()
-                    # TODO: ???
-                    if not self.training_mode:
-                        self.clock.tick(self.framerate)
-                    else:
-                        self.clock.tick(self.terminal_speed)
+                    self.clock.tick(self.framerate)
         except KeyboardInterrupt:
             self.game_over(losing_action=None, finish=True)
 
@@ -666,7 +637,6 @@ class Board:
         snake_vision = self.snake.vision()
         underline = "=" * width_board * symbols_len
         if self.training_mode:
-
             print(underline + "=" * len(separator) + underline)
             print(f"REMAINING EPOCHS: {self.epochs}".center(
                 width_board * symbols_len * 2 + len(separator)))
@@ -765,21 +735,16 @@ class Board:
         sys.exit()
 
     def game_over(self, losing_action: Vector2, finish: bool = False):
-        if self.interface and not self.training_mode:
+        if losing_action:
+            self.last_action(losing_action)
+        if self.terminal:
             print(self.game_over_msg)
             self.game_over_msg = ""
             print("\n=== GAME OVER ===")
             print(f"Length: {self.snake.get_length()}")
             self.running = False
-        elif self.training_mode:
-            if losing_action:
-                self.last_action(losing_action)
+        if self.training_mode:
             self.epochs -= 1
-            if self.terminal:
-                print("\n=== GAME OVER ===")
-                print(self.game_over_msg)
-                self.game_over_msg = ""
-                print(f"Length: {self.snake.get_length()}")
             if not self.terminal and self.progression is not None:
                 self.progression.update(1)
             if self.epochs > 0 and not finish:

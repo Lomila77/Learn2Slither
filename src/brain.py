@@ -122,21 +122,19 @@ class Brain:
 
     def get_state(self, x_axis: list[int], y_axis: list[int], pos: Vector2):
         def get_obj(array: list[int], name: str):
-            for i, obj in enumerate(array):
-                if i == 0:
-                    if obj == WALL or obj == SNAKE_BODY:
-                        danger = ("close_danger_" + name, True)
-                    else:
-                        danger = ("close_danger_" + name, False)
-                    if obj == GREEN_APPLE:
-                        reward = ("close_reward_" + name, True)
-                    else:
-                        reward = ("close_reward_" + name, False)
-                    if obj == RED_APPLE:
-                        punish = ("close_punish_" + name, True)
-                    else:
-                        punish = ("close_punish_" + name, False)
-                break
+            obj = array[0]
+            if obj == WALL or obj == SNAKE_BODY:
+                danger = ("close_danger_" + name, True)
+            else:
+                danger = ("close_danger_" + name, False)
+            if obj == GREEN_APPLE:
+                reward = ("close_reward_" + name, True)
+            else:
+                reward = ("close_reward_" + name, False)
+            if obj == RED_APPLE:
+                punish = ("close_punish_" + name, True)
+            else:
+                punish = ("close_punish_" + name, False)
             for i, obj in enumerate(array):
                 if obj == GREEN_APPLE:
                     green_apple: tuple = ("green_apple_on_" + name, True)

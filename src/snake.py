@@ -218,7 +218,7 @@ class Snake(Object):
         if length > self.max_length:
             self.max_length = length
 
-    def move(self, action: Vector2):
+    def move(self, action: Vector2) -> int:
         self.direction = action
         # Clear current snake positions
         for pos in self.body:
@@ -237,6 +237,7 @@ class Snake(Object):
             id = SNAKE_HEAD if i == 0 else SNAKE_BODY
             draw_position_on_board(self.game_board, pos, id)
         self.update_max_length()
+        return 1
 
     def eat(self, nutrient: int = 0):
         self.growth_effect += nutrient
