@@ -53,15 +53,15 @@ def parse_arguments():
 
 
 def main():
-    try:
+    # try:
         if len(sys.argv) != 1:
             args = parse_arguments()
             Board(**vars(args))
         else:
             Board()
-    except Exception as e:
-        print(e)
-        sys.exit(1)
+    # except Exception as e:
+    #     print(e)
+    #     sys.exit(1)
 
 
 if __name__ == "__main__":

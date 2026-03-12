@@ -29,14 +29,15 @@ class Apple(Object, ABC):
     def __init__(self, board: list[list[int]], cell_size: int, id: int):
         super().__init__(board, cell_size)
         self.id = id
-        row, col = get_random_position(board, self.forbidden_ids)
+        row, col = get_random_position(board, forbidden_ids=self.forbidden_ids)
         board[row][col] = id
         self.pos = Vector2(col, row)
         self.nutrients = 0
 
     def nourrish(self, board):
         board[int(self.pos.y)][int(self.pos.x)] = EMPTY_CASE
-        row, col = get_random_position(board, self.forbidden_ids)
+        row, col = get_random_position(
+            board, self.pos, self.forbidden_ids)
         self.pos = Vector2(col, row)
         board[row][col] = self.id
         return self.nutrients

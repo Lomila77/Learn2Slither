@@ -96,7 +96,7 @@ class Snake(Object):
 
         row, col = get_random_position(
             self.game_board,
-            [WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD]
+            forbidden_ids=[WALL, RED_APPLE, GREEN_APPLE, SNAKE_BODY, SNAKE_HEAD]
         )
         self.body: list[Vector2] = [Vector2(col, row)]
 

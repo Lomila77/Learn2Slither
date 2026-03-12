@@ -43,13 +43,20 @@ def draw_position_on_board(board: list[list], pos: Vector2, id: int):
     board[int(pos.y)][int(pos.x)] = id
 
 
-def get_random_position(board: list[list[int]], forbidden_ids: list[int] = []):
+def get_random_position(
+    board: list[list[int]],
+    old_pos: Vector2 = None,
+    forbidden_ids: list[int] = []
+):
     valid_positions: list[tuple[int, int]] = []
     for i, row in enumerate(board):
         for j, pos in enumerate(row):
             if pos not in forbidden_ids:
                 # i = row (y), j = column (x)
-                valid_positions.append((i, j))
+                if not old_pos:
+                    valid_positions.append((i, j))
+                elif old_pos and Vector2(j, i) != old_pos:
+                    valid_positions.append((i, j))
 
     if not valid_positions:
         raise ValueError("No place for object")

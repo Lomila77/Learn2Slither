@@ -19,7 +19,7 @@ from src.utils import (
 )
 from src.object import GreenApple, RedApple
 from src.snake import Snake
-
+from collections import deque
 
 class Board:
     menu_error: bool = False
@@ -34,7 +34,7 @@ class Board:
     step_by_step: bool = False
 
     save_as: str = "experiments_00"
-    save_in: str = "/home/gcolomer/Documents/Learn2Slither/models"
+    save_in: str = "/home/gcolomer/Documents/Learn2Slither/models/"
     load_data_from: str = ""
     load_weights_from: str = ""
 
@@ -404,6 +404,9 @@ class Board:
         if self.load_checkpoint:
             data = load_data(self.load_data_from)
             self.previous_epochs = data["epochs"]
+        else:
+            self.load_data_from = ""
+            self.load_weights_from = ""
         if self.interface:
             self.screen = pygame.display.set_mode(
                 Vector2(
@@ -418,7 +421,7 @@ class Board:
         if not self.terminal and self.training_mode:
             self.progression = tqdm(
                 total=self.total_epochs, desc="Steps", unit="step")
-        self.game_over_msg: str = ""
+        self.logs: list[str] = deque(maxlen=self.map_shape[0])
         self.max_lengths: list[int] = []
         self.movements: list[int] = []
         self.green_apples_ate: list[int] = []
@@ -453,6 +456,8 @@ class Board:
                     self.movement_counter += self.snake.move(action)
                     if self.step_by_step:
                         input()
+                    elif self.ai_player:
+                        time.sleep(self.interface_speed / 1000)
                     elif self.terminal and self.terminal_speed != 0:
                         time.sleep(self.terminal_speed / 1000)
                 if self.interface:
@@ -635,37 +640,36 @@ class Board:
         symbols_len = 2
         width_board = len(self.board[0])
         snake_vision = self.snake.vision()
-        underline = "=" * width_board * symbols_len
+        underline = "=" * width_board * symbols_len + "=" * len(separator)
+        underline += "=" * width_board * symbols_len + "=" * len(separator)
+        underline += "=" * width_board * symbols_len
         if self.training_mode:
-            print(underline + "=" * len(separator) + underline)
+            print(underline)
             print(f"REMAINING EPOCHS: {self.epochs}".center(
-                width_board * symbols_len * 2 + len(separator)))
-            print
-            print(underline + "=" * len(separator) + underline)
-            print(f"REMAINING EPOCHS: {self.epochs}".center(
-                width_board * symbols_len * 2 + len(separator)))
+                len(underline)))
+            print(underline)
             if len(self.max_lengths) != 0:
                 print(f"MAX LENGTH REACH: {max(self.max_lengths)}".center(
-                    width_board * symbols_len * 2 + len(separator)))
+                    len(underline)))
             print(f"GREEN APPLE ATE: {sum(self.green_apples_ate)}".center(
-                width_board * symbols_len * 2 + len(separator)))
+                len(underline)))
             print(f"RED APPLE ATE: {sum(self.red_apples_ate)}".center(
-                width_board * symbols_len * 2 + len(separator)))
+                len(underline)))
             print(f"WALL HITTED: {self.hit_wall_counter}".center(
-                width_board * symbols_len * 2 + len(separator)))
+                len(underline)))
             print(f"ATE HIMSELF: {self.ate_himself_counter}".center(
-                width_board * symbols_len * 2 + len(separator)))
+                len(underline)))
             if self.load_checkpoint:
                 epochs = self.total_epochs + self.previous_epochs
             else:
                 epochs = self.total_epochs
             print(f"TOTAL EPOCHS: {epochs}".center(
-                width_board * symbols_len * 2 + len(separator)))
-            print(underline + "=" * len(separator) + underline)
+                len(underline)))
+            print(underline)
             print("BRAIN".center(
                 width_board * symbols_len) + separator + "Q_TABLE".center(
-                    width_board * symbols_len))
-            print(underline + separator + underline)
+                    width_board * symbols_len) + separator)
+            print(underline)
             reward = self.snake.brain.prev_reward
             prev_action = DIRECTIONS_ICON[self.snake.brain.prev_action]
             if reward == 0:
@@ -674,35 +678,36 @@ class Board:
                 width_board * symbols_len + 1) + separator
                 + f"Length: {self.snake.brain.get_length_q_table()}".center(
                     width_board * symbols_len
-                )
+                ) + separator
             )
             print(f"Reward: {self.snake.brain.prev_reward}".center(
                 width_board * symbols_len) + separator)
-        print(underline + "=" * len(separator) + underline)
+        print(underline)
         print("BOARD".center(
             width_board * symbols_len) + separator + "SNAKE VISION".center(
-                width_board * symbols_len))
-        print(underline + separator + underline)
+                width_board * symbols_len) + separator + "LAST MESSAGE".center(
+                    width_board * symbols_len))
+        print(underline)
         for i in range(len(self.board)):
             line1 = ''.join(
                 SYMBOLS.get(cell, '?') for cell in self.board[i])
             line2 = ''.join(
                 SYMBOLS.get(cell, '?') for cell in snake_vision[i])
-            print(line1 + separator + line2)
+            logs = list(reversed(self.logs))
+            line3 = logs[i] if i < len(self.logs) else ""
+            print(line1 + separator + line2 + separator + line3)
 
     def is_eating_body(self) -> bool:
         if self.snake.get_head_position() in self.snake.get_body_position():
             self.snake.body.pop(0)
             self.ate_himself_counter += 1
-            if self.terminal:
-                self.game_over_msg = "Snake ate himself !!! Feed your snake !"
+            self.logs.append("Snake ate himself !!! Feed your snake !")
             return True
         return False
 
     def is_snake_too_short(self) -> bool:
         if self.snake.get_length() < 2:
-            if self.terminal:
-                self.game_over_msg = "Snake too short..."
+            self.logs.append("Snake too short...")
             return True
         return False
 
@@ -710,8 +715,7 @@ class Board:
         head = self.snake.get_head_position()
         for wall in self.walls:
             if head.x == wall.x and head.y == wall.y:
-                if self.terminal:
-                    self.game_over_msg = "Snake is gone, good bye snaky snakie"
+                self.logs.append("Snake is gone, good bye snaky snakie")
                 self.hit_wall_counter += 1
                 return True
         return False
@@ -738,11 +742,9 @@ class Board:
         if losing_action:
             self.last_action(losing_action)
         if self.terminal:
-            print(self.game_over_msg)
-            self.game_over_msg = ""
-            print("\n=== GAME OVER ===")
-            print(f"Length: {self.snake.get_length()}")
-            self.running = False
+            self.logs.append(f"Length: {self.snake.get_length()}")
+            self.logs.append("=== GAME OVER ===")
+            self.display()
         if self.training_mode:
             self.epochs -= 1
             if not self.terminal and self.progression is not None:
@@ -783,22 +785,19 @@ class Board:
                             self.save_as, self.save_in)
                     )
                 self.running = False
+        else:
+            self.running = False
 
     def check_collectible(self):
         for apple in self.green_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
                 self.green_apple_counter += 1
-                if self.terminal:
-                    print("Snake ate yummy green apple ! Happy snake !")
+                self.logs.append(
+                    "Snake ate yummy green apple ! Happy snake !",)
         for apple in self.red_apple:
             if apple.get_position() == self.snake.get_head_position():
                 self.snake.eat(apple.nourrish(self.board))
                 self.red_apple_counter += 1
-                if self.terminal:
-                    print("Snake ate an horrible red apple... Poor snake...")
-
-
-if __name__ == "__main__":
-    env = Board()
-    env.play()
+                self.logs.append(
+                    "Snake ate a horrible red apple. Poor snake...")
