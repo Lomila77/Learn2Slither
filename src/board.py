@@ -21,6 +21,7 @@ from src.object import GreenApple, RedApple
 from src.snake import Snake
 from collections import deque
 
+
 class Board:
     menu_error: bool = False
     running: bool = False
